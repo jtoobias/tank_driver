@@ -1,17 +1,11 @@
-
-#include<Wire.h>
-#include<ADXL345_WE.h>
-#include <DFRobot_ITG3200.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_HMC5883_U.h>
-
+#include "10DOF_IMU.h"
 #include "Arduino.h"
 
-Imu::Imu()
+Imu::Imu():gyro(&Wire, ITG_I2C_ADDR),accel(ADXL345_I2CADDR),mag(12345){
+
+}
+void Imu::init(void)
 {
-  
-  DFRobot_ITG3200 gyro = DFRobot_ITG3200(&Wire, ITG_I2C_ADDR);
-  ADXL345_WE accel = ADXL345_WE(ADXL345_I2CADDR);
   if(!accel.init()){
     Serial.println("ADXL345 not connected!");
   }
@@ -19,20 +13,21 @@ Imu::Imu()
   accel.setDataRate(ADXL345_DATA_RATE_50);
   accel.setRange(ADXL345_RANGE_4G);
   /* Assign a unique ID to this sensor at the same time */
-  Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);if(!mag.begin())
+  if(!mag.begin())
   {
     /* There was a problem detecting the HMC5883 ... check your connections */
     Serial.println("HMC5883 not connected!");
   }
 }
+
 xyzFloat Imu::read_gyro(void){
-  gyro.readGyro(Imu::raw_gyro)
-  return Imu::raw_gyro
+  xyzFloat raw_gyro;
+  gyro.readGyro(&raw_gyro.x,&raw_gyro.y,&raw_gyro.z);
+  return raw_gyro;
 }
 
-xyzFloat Imu::read_acc(void){
-  Imu::raw_accel = accel.getRawValues()
-  return Imu::raw_accel
+xyzFloat Imu::read_accel(void){
+  return accel.getRawValues();
 }
 
 float Imu::read_mag(void){
@@ -63,9 +58,8 @@ float Imu::read_mag(void){
   // Check for wrap due to addition of declination.
   if(heading > 2*PI)
     heading -= 2*PI;
-
-  Imu::heading = heading
+   
   // Convert radians to degrees for readability.
   float headingDegrees = heading * 180/M_PI; 
-  return headingDegrees
+  return headingDegrees;
 }

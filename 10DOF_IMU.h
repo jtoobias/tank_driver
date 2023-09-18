@@ -1,7 +1,9 @@
 #ifndef IMU_10DOF_h
 #define IMU_10DOF_h
 
-#include Arduino
+// #include Arduino
+
+#include<Wire.h>
 #include<ADXL345_WE.h>
 #include <DFRobot_ITG3200.h>
 #include <Adafruit_Sensor.h>
@@ -13,20 +15,22 @@
 class Imu
 {
   public:
-    Imu(void);
-    xyzFloat read_acc(void);
-    void read_gyro(void);
+    Imu();
+    void init(void);
+    xyzFloat read_accel(void);
+    xyzFloat read_gyro(void);
     float read_mag(void);
-    DFRobot_ITG3200 gyro;
-    ADXL345_WE accel;
-    Adafruit_HMC5883_Unified mag;
 
     float heading;
     xyzFloat raw_accel;
     xyzFloat raw_gyro;
     float temperature;
   private:
+
     // int _pin;
+    DFRobot_ITG3200 gyro;
+    ADXL345_WE accel;
+    Adafruit_HMC5883_Unified mag;
 };
 // the #include statement and code go here...
 

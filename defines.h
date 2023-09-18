@@ -1,6 +1,7 @@
 // Define global variables and Defines
 
 #include "10DOF_IMU.h"
+#include <stdint.h>
 /*
  * Defines
  */
@@ -61,7 +62,7 @@
   
 // };
   // Struct to hold control variables
-typdef struct{
+typedef struct{
   // int p_gain;
   // int i_gain;
   // int d_gain;
@@ -94,8 +95,8 @@ typedef struct{
         }flag;
         volatile uint8_t flag_value; 
     };
-    volatile uint32 pulses;       //this variable stores our current encoder 1 pulse count
-    uint32 last_pulses;       //this variable stores our current encoder 1 pulse count
+    volatile uint32_t pulses;       //this variable stores our current encoder 1 pulse count
+    uint32_t last_pulses;       //this variable stores our current encoder 1 pulse count
     
     uint8_t fsm_state;
     volatile uint8_t direction;     // holds the direction of the encoder rotation (0 = unknown, 1 = counter clkwise 2 = clkwise)      S
@@ -147,5 +148,6 @@ extern hardware_s hardware;
 extern encoder_s encoder_L;
 extern encoder_s encoder_R;
 extern char global_data[GLOBAL_ARRAY_SIZE];
+extern volatile uint32_t ms_timer;
 
 #endif

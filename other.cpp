@@ -42,7 +42,7 @@ void save_eeprom_variables (void) {
 unsigned long diff_millis(unsigned long  ms_timestamp)
 {
   volatile unsigned long diff = 0;
-  diff = millis() - ms_timestamp;
+  diff = ms_timer - ms_timestamp;
   // return the difference
   return diff;
 }
@@ -89,10 +89,11 @@ void init_variables (void) {
   encoder_R.direction = ENCODER_DIR_UNKNOWN;
 
   hardware.io.state_value = 0;
-  hardware.motor_left.control.error = 0
-  hardware.motor_left.control.last_error = 0
-  hardware.motor_right.control.error = 0
-  hardware.motor_right.control.last_error = 0
+  hardware.motor_left.control.error = 0;
+  hardware.motor_left.control.last_error = 0;
+  hardware.motor_right.control.error = 0;
+  hardware.motor_right.control.last_error = 0;
+
 }
 
 void init_pins(void){
@@ -121,6 +122,7 @@ void init_pins(void){
   attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT_A), rotaryEncoder_left, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT_B), rotaryEncoder_left, RISING);
   
+  pinMode(LED,INPUT);
   pinMode(LED,OUTPUT);
    //pinMode(DEBUG,OUTPUT);
   pinMode(PIN_ENCODER_RIGHT_A, INPUT); // set pinA as an input, pulled HIGH to the logic voltage (5V or 3.3V for most cases)
@@ -128,6 +130,7 @@ void init_pins(void){
 
   attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_RIGHT_A), rotaryEncoder_right, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_RIGHT_B), rotaryEncoder_right, RISING);
+  // interrupt_setup();
   interrupts();
 }
 

@@ -2,13 +2,12 @@
  * rosserial Planar Odometry Example
  */
 
-#include <Arduino.h>
+// #include <Arduino.h>
 #include <RotaryEncoder.h>
 
 #include "defines.h"
 #include "other.h"
 #include "FaBoPWM_PCA9685.h"
-#include "10DOF_IMU.h"
 
 FaBoPWM faboPWM(0x70);
 #define MAX_VALUE 4095
@@ -43,130 +42,131 @@ FaBoPWM faboPWM(0x70);
 // {
 //   //encoder.tick(); // just call tick() to check the state.
 // }
+
 // A pair of varibles to help parse serial commands (thanks Fergs)
-int arg = 0;
-int index = 0;
+// int arg = 0;
+// int index = 0;
 
-// Variable to hold an input character
-char chr;
+// // Variable to hold an input character
+// char chr;
 
-// Variable to hold the current single-character command
-char cmd;
+// // Variable to hold the current single-character command
+// char cmd;
 
-// Character arrays to hold the first and second arguments
-char argv1[16];
-char argv2[16];
+// // Character arrays to hold the first and second arguments
+// char argv1[16];
+// char argv2[16];
 
-// The arguments converted to integers
-long arg1;
-long arg2;
+// // The arguments converted to integers
+// long arg1;
+// long arg2;
 
-/* Clear the current command parameters */
-void resetCommand() {
-  cmd = NULL;
-  memset(argv1, 0, sizeof(argv1));
-  memset(argv2, 0, sizeof(argv2));
-  arg1 = 0;
-  arg2 = 0;
-  arg = 0;
-  index = 0;
-}
+// /* Clear the current command parameters */
+// void resetCommand() {
+//   cmd = NULL;
+//   memset(argv1, 0, sizeof(argv1));
+//   memset(argv2, 0, sizeof(argv2));
+//   arg1 = 0;
+//   arg2 = 0;
+//   arg = 0;
+//   index = 0;
+// }
 
-/* Run a command.  Commands are defined in commands.h */
-int runCommand() {
-  int i = 0;
-  char *p = argv1;
-  char *str;
-  int pid_args[4];
-  arg1 = atoi(argv1);
-  arg2 = atoi(argv2);
+// /* Run a command.  Commands are defined in commands.h */
+// int runCommand() {
+//   int i = 0;
+//   char *p = argv1;
+//   char *str;
+//   int pid_args[4];
+//   arg1 = atoi(argv1);
+//   arg2 = atoi(argv2);
   
-  switch(cmd) {
-  case GET_BAUDRATE:
-    Serial.println(BAUDRATE);
-    break;
-  case ANALOG_READ:
-    Serial.println(analogRead(arg1));
-    break;
-  case DIGITAL_READ:
-    Serial.println(digitalRead(arg1));
-    break;
-  case ANALOG_WRITE:
-    analogWrite(arg1, arg2);
-    Serial.println("OK"); 
-    break;
-  case DIGITAL_WRITE:
-    if (arg2 == 0) digitalWrite(arg1, LOW);
-    else if (arg2 == 1) digitalWrite(arg1, HIGH);
-    Serial.println("OK"); 
-    break;
-  case PIN_MODE:
-    if (arg2 == 0) pinMode(arg1, INPUT);
-    else if (arg2 == 1) pinMode(arg1, OUTPUT);
-    Serial.println("OK");
-    break;
-  case PING:
-    Serial.println(Ping(arg1));
-    break;
-#ifdef USE_SERVOS
-  case SERVO_WRITE:
-    servos[arg1].setTargetPosition(arg2);
-    Serial.println("OK");
-    break;
-  case SERVO_READ:
-    Serial.println(servos[arg1].getServo().read());
-    break;
-#endif
+//   switch(cmd) {
+//   case GET_BAUDRATE:
+//     Serial.println(BAUDRATE);
+//     break;
+//   case ANALOG_READ:
+//     Serial.println(analogRead(arg1));
+//     break;
+//   case DIGITAL_READ:
+//     Serial.println(digitalRead(arg1));
+//     break;
+//   case ANALOG_WRITE:
+//     analogWrite(arg1, arg2);
+//     Serial.println("OK"); 
+//     break;
+//   case DIGITAL_WRITE:
+//     if (arg2 == 0) digitalWrite(arg1, LOW);
+//     else if (arg2 == 1) digitalWrite(arg1, HIGH);
+//     Serial.println("OK"); 
+//     break;
+//   case PIN_MODE:
+//     if (arg2 == 0) pinMode(arg1, INPUT);
+//     else if (arg2 == 1) pinMode(arg1, OUTPUT);
+//     Serial.println("OK");
+//     break;
+//   case PING:
+//     Serial.println(Ping(arg1));
+//     break;
+// #ifdef USE_SERVOS
+//   case SERVO_WRITE:
+//     servos[arg1].setTargetPosition(arg2);
+//     Serial.println("OK");
+//     break;
+//   case SERVO_READ:
+//     Serial.println(servos[arg1].getServo().read());
+//     break;
+// #endif
     
-#ifdef USE_BASE
-  case READ_ENCODERS:
-    Serial.print(readEncoder(LEFT));
-    Serial.print(" ");
-    Serial.println(readEncoder(RIGHT));
-    break;
-   case RESET_ENCODERS:
-    resetEncoders();
-    resetPID();
-    Serial.println("OK");
-    break;
-  case MOTOR_SPEEDS:
-    /* Reset the auto stop timer */
-    lastMotorCommand = millis();
-    if (arg1 == 0 && arg2 == 0) {
-      setMotorSpeeds(0, 0);
-      resetPID();
-      moving = 0;
-    }
-    else moving = 1;
-    leftPID.TargetTicksPerFrame = arg1;
-    rightPID.TargetTicksPerFrame = arg2;
-    Serial.println("OK"); 
-    break;
-  case MOTOR_RAW_PWM:
-    /* Reset the auto stop timer */
-    lastMotorCommand = millis();
-    resetPID();
-    moving = 0; // Sneaky way to temporarily disable the PID
-    setMotorSpeeds(arg1, arg2);
-    Serial.println("OK"); 
-    break;
-  case UPDATE_PID:
-    while ((str = strtok_r(p, ":", &p)) != '\0') {
-       pid_args[i] = atoi(str);
-       i++;
-    }
-    Kp = pid_args[0];
-    Kd = pid_args[1];
-    Ki = pid_args[2];
-    Ko = pid_args[3];
-    Serial.println("OK");
-    break;
-#endif
-  default:
-    Serial.println("Invalid Command");
-    break;
-  }
-}
+// #ifdef USE_BASE
+//   case READ_ENCODERS:
+//     Serial.print(readEncoder(LEFT));
+//     Serial.print(" ");
+//     Serial.println(readEncoder(RIGHT));
+//     break;
+//    case RESET_ENCODERS:
+//     resetEncoders();
+//     resetPID();
+//     Serial.println("OK");
+//     break;
+//   case MOTOR_SPEEDS:
+//     /* Reset the auto stop timer */
+//     lastMotorCommand = ms_timer;
+//     if (arg1 == 0 && arg2 == 0) {
+//       setMotorSpeeds(0, 0);
+//       resetPID();
+//       moving = 0;
+//     }
+//     else moving = 1;
+//     leftPID.TargetTicksPerFrame = arg1;
+//     rightPID.TargetTicksPerFrame = arg2;
+//     Serial.println("OK"); 
+//     break;
+//   case MOTOR_RAW_PWM:
+//     /* Reset the auto stop timer */
+//     lastMotorCommand = ms_timer;
+//     resetPID();
+//     moving = 0; // Sneaky way to temporarily disable the PID
+//     setMotorSpeeds(arg1, arg2);
+//     Serial.println("OK"); 
+//     break;
+//   case UPDATE_PID:
+//     while ((str = strtok_r(p, ":", &p)) != '\0') {
+//        pid_args[i] = atoi(str);
+//        i++;
+//     }
+//     Kp = pid_args[0];
+//     Kd = pid_args[1];
+//     Ki = pid_args[2];
+//     Ko = pid_args[3];
+//     Serial.println("OK");
+//     break;
+// #endif
+//   default:
+//     Serial.println("Invalid Command");
+//     break;
+//   }
+// }
 
 /*
  * Variables
@@ -178,18 +178,21 @@ encoder_s encoder_R;
 uint32_t _encoder_update_diff_ms_ = 0;
 uint32_t last_encoder_update = 0;
 uint32_t last_motor_update = 0;
-uint32_t last_encoder_speed_update = 0
+uint32_t last_encoder_speed_update = 0;
 char global_data[GLOBAL_ARRAY_SIZE];
+volatile uint32_t ms_timer = 0;
 uint32_t crc32 = 0;
 uint8_t len = 4; // pulse,pulse,time_change,CRC
-imu = Imu()
+Imu imu;
 
-uint16 encoder_update_time = 0
-
+uint16_t encoder_update_time = 0;
+uint32_t last_imu_update;
 void setup()
 {
+  Serial.begin(115200);
+  imu.init();
   init_pins();
-  init_variables();;
+  init_variables();
   interrupt_setup();
 
   
@@ -198,6 +201,10 @@ void setup()
     faboPWM.init(MIN_VALUE);
   }
   faboPWM.set_hz(15000);
+  Serial.println("Init");
+
+  digitalWrite(LED,HIGH);
+  last_imu_update = ms_timer;
 }
 
 void loop()
@@ -215,61 +222,72 @@ void loop()
   //   //Serial.println(pulse_data);
   //   str_msg.data = global_data;
   //   pulses.publish(&str_msg);
-  //   last_encoder_update = millis();
+  //   last_encoder_update = ms_timer;
 
   // } 
-  while (Serial.available() > 0) {
-    // Read the next character
-    chr = Serial.read();
+  // while (Serial.available() > 0) {
+  //   // Read the next character
+  //   chr = Serial.read();
 
-    // Terminate a command with a CR
-    if (chr == 13) {
-      if (arg == 1) argv1[index] = NULL;
-      else if (arg == 2) argv2[index] = NULL;
-      runCommand();
-      resetCommand();
-    }
-    // Use spaces to delimit parts of the command
-    else if (chr == ' ') {
-      // Step through the arguments
-      if (arg == 0) arg = 1;
-      else if (arg == 1)  {
-        argv1[index] = NULL;
-        arg = 2;
-        index = 0;
-      }
-      continue;
-    }
-    else {
-      if (arg == 0) {
-        // The first arg is the single-letter command
-        cmd = chr;
-      }
-      else if (arg == 1) {
-        // Subsequent arguments can be more than one character
-        argv1[index] = chr;
-        index++;
-      }
-      else if (arg == 2) {
-        argv2[index] = chr;
-        index++;
-      }
-    }
+  //   // Terminate a command with a CR
+  //   if (chr == 13) {
+  //     if (arg == 1) argv1[index] = NULL;
+  //     else if (arg == 2) argv2[index] = NULL;
+  //     runCommand();
+  //     resetCommand();
+  //   }
+  //   // Use spaces to delimit parts of the command
+  //   else if (chr == ' ') {
+  //     // Step through the arguments
+  //     if (arg == 0) arg = 1;
+  //     else if (arg == 1)  {
+  //       argv1[index] = NULL;
+  //       arg = 2;
+  //       index = 0;
+  //     }
+  //     continue;
+  //   }
+  //   else {
+  //     if (arg == 0) {
+  //       // The first arg is the single-letter command
+  //       cmd = chr;
+  //     }
+  //     else if (arg == 1) {
+  //       // Subsequent arguments can be more than one character
+  //       argv1[index] = chr;
+  //       index++;
+  //     }
+  //     else if (arg == 2) {
+  //       argv2[index] = chr;
+  //       index++;
+  //     }
+  //   }
 
   
   if ((encoder_update_time = diff_millis(last_encoder_speed_update)) >= 100){
-    uint32 encoder_diff = 0;
-    hardware.motor_left.speed = (encoder_L.pulses - encoder_L.last_pulses)/encoder_update_time
-    hardware.motor_right.speed = (encoder_R.pulses - encoder_R.last_pulses)/encoder_update_time
-    encoder_R.last_pulses = encoder_R.pulses
-    encoder_L.last_pulses = encoder_L.pulses
-    last_encoder_speed_update = millis();
+    uint32_t encoder_diff = 0;
+    hardware.motor_left.speed = (encoder_L.pulses - encoder_L.last_pulses)/encoder_update_time;
+    hardware.motor_right.speed = (encoder_R.pulses - encoder_R.last_pulses)/encoder_update_time;
+    encoder_R.last_pulses = encoder_R.pulses;
+    encoder_L.last_pulses = encoder_L.pulses;
+    Serial.print(String(encoder_R.pulses)+ " ");
+    Serial.println(String(encoder_L.pulses));
+    // Serial.print(String(hardware.motor_left.speed))
+    // Serial.print(String(hardware.motor_right.speed))
+    last_encoder_speed_update = ms_timer;
   } 
-  if (diff_millis(last_imu_update) >= 50){
-    imu.read_mag()
-    imu.read_accel()
-    imu.read_gyro()
-    last_imu_update = millis();
+
+  Serial.println(String(last_imu_update)+" "+ ms_timer+ " "+String(diff_millis(last_imu_update)));
+  if (diff_millis(last_imu_update) >= 500){
+    imu.read_mag();
+    imu.read_accel();
+    imu.read_gyro();
+
+
+    digitalWrite(LED,~digitalRead(LED));
+    Serial.println("LED "+String(digitalRead(LED)));
+
+    last_imu_update = ms_timer;
   } 
 }
 
@@ -288,7 +306,7 @@ void rotaryEncoder_left (void){
       // Both pins are high and we expected A line, This means B line was already high
     if (encoder_L.state.a && encoder_L.state.b && encoder_L.flag.a){
         encoder_L.direction = ENCODER_DIR_COUNTER_CLOCKWISE;  // Not checked
-        encoder_L.msg.pulses++;
+        encoder_L.pulses++;
         encoder_L.flag.ab_changed = TRUE;
         encoder_L.flag.a = FALSE;
         encoder_L.flag.b = FALSE;
@@ -300,7 +318,7 @@ void rotaryEncoder_left (void){
        // Both pins are high and we expected B line, This means A line was already high
     if (encoder_L.state.a && encoder_L.state.b && encoder_L.flag.b){
       encoder_L.direction = ENCODER_DIR_CLOCKWISE;  // Not checked
-      encoder_L.msg.pulses--;
+      encoder_L.pulses--;
       encoder_L.flag.ab_changed = TRUE;
       encoder_L.flag.a = FALSE;
       encoder_L.flag.b = FALSE;
@@ -315,7 +333,7 @@ void rotaryEncoder_left (void){
     
   
 void rotaryEncoder_right (void){
-  digitalWrite(LED,HIGH);
+  // digitalWrite(LED,HIGH);
   noInterrupts();
   
   encoder_R.state.a = (digitalRead(PIN_ENCODER_RIGHT_A) != 0);
@@ -325,7 +343,7 @@ void rotaryEncoder_right (void){
         // Both pins are high and we expected A line, This means B line was already high
     if (encoder_R.state.a && encoder_R.state.b && encoder_R.flag.a){
         encoder_R.direction = ENCODER_DIR_COUNTER_CLOCKWISE;                // Not checked
-        encoder_R.msg.pulses++;
+        encoder_R.pulses++;
         encoder_R.flag.ab_changed = TRUE;
         encoder_R.flag.a = FALSE;
         encoder_R.flag.b = FALSE;
@@ -340,7 +358,7 @@ void rotaryEncoder_right (void){
       // Both pins are high and we expected B line, This means A line was already high
     if (encoder_R.state.a && encoder_R.state.b && encoder_R.flag.b){
       encoder_R.direction = ENCODER_DIR_CLOCKWISE;  // Not checked
-      encoder_R.msg.pulses--;
+      encoder_R.pulses--;
       encoder_R.flag.ab_changed = TRUE;
       encoder_R.flag.a = FALSE;
       encoder_R.flag.b = FALSE;
@@ -360,9 +378,11 @@ void rotaryEncoder_right (void){
  */
   // millisecond timer interrupt
 ISR(TIMER0_COMPA_vect){
+  noInterrupts();
+  ms_timer++;
     // Motor control section
   if (diff_millis(last_motor_update) > 50){
-    last_motor_update = millis();
+    last_motor_update = ms_timer;
 
 
     // Need to add PID controller for speed
@@ -429,4 +449,6 @@ ISR(TIMER0_COMPA_vect){
     //   } 
     // } 
   }
+
+  interrupts();
 }
