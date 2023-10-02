@@ -46,6 +46,7 @@ void send_packet (int8_t *data,int8_t len);
   // Declared in main
 extern void rotaryEncoder_left (void);
 extern void rotaryEncoder_right (void);
+extern void motorTimerCb(void);
 
 
 //String processor(const String& var);

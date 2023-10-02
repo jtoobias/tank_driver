@@ -13,12 +13,12 @@
 #define GLOBAL_ARRAY_SIZE 50
 
 // PORT D
-#define PIN_ENCODER_LEFT_A 21//9      // A leads in counter clockwise direction (Grey wire)
-#define PIN_ENCODER_LEFT_B 20//10     // B leads in clockwise direction (Green wire)
+#define PIN_ENCODER_LEFT_A 2//9      // A leads in counter clockwise direction (Grey wire)
+#define PIN_ENCODER_LEFT_B 3//10     // B leads in clockwise direction (Green wire)
 //#define PIN_ENCODER1_Z 7//11     // White wire
 // PORT B
-#define PIN_ENCODER_RIGHT_A 22     
-#define PIN_ENCODER_RIGHT_B 23
+#define PIN_ENCODER_RIGHT_A 4     
+#define PIN_ENCODER_RIGHT_B 6
 //#define PIN_ENCODER2_Z 10     // Z pulses every rotation
 
 #define MY_SOF "{ " // Space required for splitting in the ros node
@@ -95,8 +95,8 @@ typedef struct{
         }flag;
         volatile uint8_t flag_value; 
     };
-    volatile uint32_t pulses;       //this variable stores our current encoder 1 pulse count
-    uint32_t last_pulses;       //this variable stores our current encoder 1 pulse count
+    volatile int32_t pulses;       //this variable stores our current encoder 1 pulse count
+    int32_t last_pulses;       //this variable stores our current encoder 1 pulse count
     
     uint8_t fsm_state;
     volatile uint8_t direction;     // holds the direction of the encoder rotation (0 = unknown, 1 = counter clkwise 2 = clkwise)      S

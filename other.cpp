@@ -8,6 +8,7 @@ Notes:
 #include "EEPROM.h"
 #include "other.h"
 #include "defines.h"
+#include <TimerOne.h>
 
 /*******************************************************************************************/
 /*                                     G L O B A L S                                       */
@@ -27,6 +28,7 @@ extern "C" {
 
 void rotaryEncoder_left (void);
 void rotaryEncoder_right (void);
+void motorTimerCb(void);
 
 	// Performs a system reset:
 void system_reset (void) {
@@ -42,7 +44,7 @@ void save_eeprom_variables (void) {
 unsigned long diff_millis(unsigned long  ms_timestamp)
 {
   volatile unsigned long diff = 0;
-  diff = ms_timer - ms_timestamp;
+  diff = millis() - ms_timestamp;
   // return the difference
   return diff;
 }
@@ -115,41 +117,34 @@ void init_pins(void){
   //PCICR |= 0x01;
   
   
+  pinMode(PIN_ENCODER_RIGHT_A, INPUT); // set pinA as an input, pulled HIGH to the logic voltage (5V or 3.3V for most cases)
+  pinMode(PIN_ENCODER_RIGHT_B, INPUT); // set pinB as an input, pulled HIGH to the logic voltage (5V or 3.3V for most cases)  
   pinMode(PIN_ENCODER_LEFT_A, INPUT); // set pinA as an input, pulled HIGH to the logic voltage (5V or 3.3V for most cases)
   pinMode(PIN_ENCODER_LEFT_B, INPUT); // set pinB as an input, pulled HIGH to the logic voltage (5V or 3.3V for most cases)  
 
-  // attachInterrupt(digitalPinToInterrupt(pin), ISR, mode) (recommended)
-  attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT_A), rotaryEncoder_left, RISING);
-  attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT_B), rotaryEncoder_left, RISING);
   
   pinMode(LED,INPUT);
   pinMode(LED,OUTPUT);
    //pinMode(DEBUG,OUTPUT);
-  pinMode(PIN_ENCODER_RIGHT_A, INPUT); // set pinA as an input, pulled HIGH to the logic voltage (5V or 3.3V for most cases)
-  pinMode(PIN_ENCODER_RIGHT_B, INPUT); // set pinB as an input, pulled HIGH to the logic voltage (5V or 3.3V for most cases)  
 
-  attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_RIGHT_A), rotaryEncoder_right, RISING);
-  attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_RIGHT_B), rotaryEncoder_right, RISING);
-  // interrupt_setup();
-  interrupts();
 }
 
 void interrupt_setup(void){
-  cli();//stop interrupts
+  
+  // Timer1.initialize(1000);  // Set the timer period to 1 second (in microseconds)
+  // Timer1.attachInterrupt(motorTimerCb);  // Attach the timer callback function
+  // attachInterrupt(digitalPinToInterrupt(pin), ISR, mode) (recommended)
+  // attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT_A), rotaryEncoder_left, RISING);
+  // attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT_B), rotaryEncoder_left, RISING);
 
-    //set timer0 interrupt at 2kHz
-  TCCR0A = 0;// set entire TCCR0A register to 0
-  TCCR0B = 0;// same for TCCR0B
-  TCNT0  = 0;//initialize counter value to 0
-    // set compare match register for 2khz increments
-  OCR0A = 249;// = (16*10^6) / (2000*64) - 1 (must be <256)
-    // turn on CTC mode
-  TCCR0A |= (1 << WGM01);
-   // Set CS01 and CS00 bits for 64 prescaler 0 = no clock source prescaler, 1 = no psclar, 2 = 8, 3=64, 4=256 ...
-  TCCR0B |= (1 << CS01) | (1 << CS00);   
-    // enable timer compare interrupt
-  TIMSK0 |= (1 << OCIE0A);
-  sei();//allow interrupts
+
+ 
+  // Enable PCIE2 Bit3 = 1 (Port D)
+  PCICR |= 0x04;
+  // Select PCINT22 and 20 Bit6 and 4 = 1 (Pin D6&4) also 2&3
+  PCMSK2 |= 0x6C;
+  // Enable interrupts globally
+  sei();
 }
 
 	// Initializes the unit by setting all parameters to defaults:

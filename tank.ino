@@ -204,7 +204,7 @@ void setup()
   Serial.println("Init");
 
   digitalWrite(LED,HIGH);
-  last_imu_update = ms_timer;
+  last_imu_update = millis();
 }
 
 void loop()
@@ -274,181 +274,189 @@ void loop()
     Serial.println(String(encoder_L.pulses));
     // Serial.print(String(hardware.motor_left.speed))
     // Serial.print(String(hardware.motor_right.speed))
-    last_encoder_speed_update = ms_timer;
+
+    faboPWM.set_channel_value(2, 0);      
+    faboPWM.set_channel_value(3,0);
+
+    faboPWM.set_channel_value(0, 0);      
+    faboPWM.set_channel_value(1, 0); // clockwise 
+    last_encoder_speed_update = millis();
   } 
 
-  Serial.println(String(last_imu_update)+" "+ ms_timer+ " "+String(diff_millis(last_imu_update)));
-  if (diff_millis(last_imu_update) >= 500){
+  // if (diff_millis(last_imu_update) >= 1000){
+  //   Serial.print(String(digitalRead(PIN_ENCODER_RIGHT_A)));
+  //   Serial.println(" Right A ENCODER");
+  //   Serial.print(String(digitalRead(PIN_ENCODER_RIGHT_B)));
+  //   Serial.println(" Right B ENCODER");
+  // }
+
+  // Serial.println ("hi");
+  if (diff_millis(last_imu_update) >= 1000){
     imu.read_mag();
     imu.read_accel();
     imu.read_gyro();
+    // digitalWrite(LED, !digitalRead(LED));  // Toggle the LED state
 
+    // digitalWrite(LED,~digitalRead(LED));
+    // Serial.println("LED "+String(digitalRead(LED)));
 
-    digitalWrite(LED,~digitalRead(LED));
-    Serial.println("LED "+String(digitalRead(LED)));
-
-    last_imu_update = ms_timer;
+    last_imu_update = millis();
   } 
 }
-
-void rotaryEncoder_left (void){
-  //stop interrupts happening before we read pin values
-  noInterrupts();
-    // read the pin states
-  //encoder.state.z2 = (digitalRead(PIN_ENCODER2_Z) != 0);
-  
-      
-  encoder_L.state.a = (digitalRead(PIN_ENCODER_LEFT_A) != 0);
-  encoder_L.state.b = (digitalRead(PIN_ENCODER_LEFT_B) != 0);
-  
- //  Serial.println(String(encoder.state_value));
-  if (encoder_L.state.a /*&& !encoder_L.state.last_a*/){
-      // Both pins are high and we expected A line, This means B line was already high
-    if (encoder_L.state.a && encoder_L.state.b && encoder_L.flag.a){
-        encoder_L.direction = ENCODER_DIR_COUNTER_CLOCKWISE;  // Not checked
-        encoder_L.pulses++;
-        encoder_L.flag.ab_changed = TRUE;
-        encoder_L.flag.a = FALSE;
-        encoder_L.flag.b = FALSE;
-          // 
-    } else if (encoder_L.state.a && !encoder_L.state.b) encoder_L.flag.b = TRUE;
-  }
-  
-  if (encoder_L.state.b /*&& !encoder_L.state.last_b*/){
-       // Both pins are high and we expected B line, This means A line was already high
-    if (encoder_L.state.a && encoder_L.state.b && encoder_L.flag.b){
-      encoder_L.direction = ENCODER_DIR_CLOCKWISE;  // Not checked
-      encoder_L.pulses--;
-      encoder_L.flag.ab_changed = TRUE;
-      encoder_L.flag.a = FALSE;
-      encoder_L.flag.b = FALSE;
-    } else if (!encoder_L.state.a && encoder_L.state.b) encoder_L.flag.a = TRUE;
-  }
-
-  encoder_L.flag.ab_changed = TRUE;
-  /*encoder_L.state.last_a = encoder_L.state.a;
-  encoder_L.state.last_b = encoder_L.state.b;*/
-  interrupts();
-}
     
-  
-void rotaryEncoder_right (void){
+ISR (PCINT2_vect)
+{
+// void rotaryEncoder_right (void){
   // digitalWrite(LED,HIGH);
-  noInterrupts();
-  
-  encoder_R.state.a = (digitalRead(PIN_ENCODER_RIGHT_A) != 0);
-  encoder_R.state.b = (digitalRead(PIN_ENCODER_RIGHT_B) != 0);
-  if (encoder_R.state.a /*&& !encoder_R.state.last_a*/){
-     // digitalWrite(DEBUG,HIGH);
-        // Both pins are high and we expected A line, This means B line was already high
-    if (encoder_R.state.a && encoder_R.state.b && encoder_R.flag.a){
-        encoder_R.direction = ENCODER_DIR_COUNTER_CLOCKWISE;                // Not checked
-        encoder_R.pulses++;
+  cli();
+  if ((digitalRead(PIN_ENCODER_RIGHT_A) != encoder_R.state.a) || (digitalRead(PIN_ENCODER_RIGHT_B) != encoder_R.state.b)){
+    encoder_R.state.a = (digitalRead(PIN_ENCODER_RIGHT_A) != 0);
+    encoder_R.state.b = (digitalRead(PIN_ENCODER_RIGHT_B) != 0);
+    if (encoder_R.state.a /*&& !encoder_R.state.last_a*/){
+      // digitalWrite(DEBUG,HIGH);
+          // Both pins are high and we expected A line, This means B line was already high
+      if (encoder_R.state.a && encoder_R.state.b && encoder_R.flag.a){
+          encoder_R.direction = ENCODER_DIR_COUNTER_CLOCKWISE;                // Not checked
+          encoder_R.pulses++;
+          encoder_R.flag.ab_changed = TRUE;
+          encoder_R.flag.a = FALSE;
+          encoder_R.flag.b = FALSE;
+          
+      } else if (encoder_R.state.a && !encoder_R.state.b){
+        encoder_R.flag.b = TRUE;
+      // digitalWrite(DEBUG,LOW);
+      }
+    } 
+    
+    if (encoder_R.state.b /*&& !encoder_R.state.last_b*/){
+        // Both pins are high and we expected B line, This means A line was already high
+      if (encoder_R.state.a && encoder_R.state.b && encoder_R.flag.b){
+        encoder_R.direction = ENCODER_DIR_CLOCKWISE;  // Not checked
+        encoder_R.pulses--;
         encoder_R.flag.ab_changed = TRUE;
         encoder_R.flag.a = FALSE;
         encoder_R.flag.b = FALSE;
-         
-    } else if (encoder_R.state.a && !encoder_R.state.b){
-      encoder_R.flag.b = TRUE;
-    // digitalWrite(DEBUG,LOW);
+      } else if (!encoder_R.state.a && encoder_R.state.b){
+        encoder_R.flag.a = TRUE;
+      }
     }
-  } 
-   
-  if (encoder_R.state.b /*&& !encoder_R.state.last_b*/){
-      // Both pins are high and we expected B line, This means A line was already high
-    if (encoder_R.state.a && encoder_R.state.b && encoder_R.flag.b){
-      encoder_R.direction = ENCODER_DIR_CLOCKWISE;  // Not checked
-      encoder_R.pulses--;
-      encoder_R.flag.ab_changed = TRUE;
-      encoder_R.flag.a = FALSE;
-      encoder_R.flag.b = FALSE;
-    } else if (!encoder_R.state.a && encoder_R.state.b){
-      encoder_R.flag.a = TRUE;
-    }
+    encoder_R.flag.ab_changed = TRUE;
   }
-  
-      encoder_R.flag.ab_changed = TRUE;
+  if ((digitalRead(PIN_ENCODER_LEFT_A) != encoder_L.state.a) || (digitalRead(PIN_ENCODER_LEFT_B) != encoder_L.state.b)){
+
+    encoder_L.state.a = (digitalRead(PIN_ENCODER_LEFT_A) != 0);
+    encoder_L.state.b = (digitalRead(PIN_ENCODER_LEFT_B) != 0);
+    
+  //  Serial.println(String(encoder.state_value));
+    if (encoder_L.state.a /*&& !encoder_L.state.last_a*/){
+        // Both pins are high and we expected A line, This means B line was already high
+      if (encoder_L.state.a && encoder_L.state.b && encoder_L.flag.a){
+          encoder_L.direction = ENCODER_DIR_COUNTER_CLOCKWISE;  // Not checked
+          encoder_L.pulses++;
+          encoder_L.flag.ab_changed = TRUE;
+          encoder_L.flag.a = FALSE;
+          encoder_L.flag.b = FALSE;
+            // 
+      } else if (encoder_L.state.a && !encoder_L.state.b) encoder_L.flag.b = TRUE;
+    }
+    
+    if (encoder_L.state.b /*&& !encoder_L.state.last_b*/){
+        // Both pins are high and we expected B line, This means A line was already high
+      if (encoder_L.state.a && encoder_L.state.b && encoder_L.flag.b){
+        encoder_L.direction = ENCODER_DIR_CLOCKWISE;  // Not checked
+        encoder_L.pulses--;
+        encoder_L.flag.ab_changed = TRUE;
+        encoder_L.flag.a = FALSE;
+        encoder_L.flag.b = FALSE;
+      } else if (!encoder_L.state.a && encoder_L.state.b) encoder_L.flag.a = TRUE;
+    }
+
+    encoder_L.flag.ab_changed = TRUE;
+  }
    // restart interrupts
-  interrupts();
-  digitalWrite(LED,LOW);
+  // Enable interrupts globally
+  sei();
+  // digitalWrite(LED,LOW);
 }
 
 /*
  * INTERRUPTS
  */
   // millisecond timer interrupt
-ISR(TIMER0_COMPA_vect){
-  noInterrupts();
-  ms_timer++;
-    // Motor control section
-  if (diff_millis(last_motor_update) > 50){
-    last_motor_update = ms_timer;
+// ISR(TIMER1_COMPA_vect){
+// void motorTimerCb() {
+//   // Serial.println("HI timer " + String(ms_timer));
+//   noInterrupts();
+//   ms_timer++;
+//     // Motor control section
+//   if (diff_millis(last_motor_update) > 500){
+//     last_motor_update = millis();
+//     Serial.println(String(ms_timer));
+
+//     // Need to add PID controller for speed
 
 
-    // Need to add PID controller for speed
+//     // if (hardware.motor_left.flag.direction == DIR_FORWARD){
+//     //   faboPWM.set_channel_value(2, 0);      
+//     //   faboPWM.set_channel_value(3, hardware.motor_left.current_pwm); // clockwise 
+//     // } else{
+//     //   faboPWM.set_channel_value(2, hardware.motor_left.current_pwm);      
+//     //   faboPWM.set_channel_value(3, 0); // clockwise 
+//     // }
 
+//     // if (hardware.motor_right.flag.direction == DIR_FORWARD){
+//     //     faboPWM.set_channel_value(0, 0);      
+//     //     faboPWM.set_channel_value(1, hardware.motor_right.current_pwm); // clockwise 
+//     // } else{
+//     //   faboPWM.set_channel_value(0, hardware.motor_right.current_pwm);      
+//     //   faboPWM.set_channel_value(1, 0); // clockwise 
+//     // }
 
-    if (hardware.motor_left.flag.direction == DIR_FORWARD){
-      faboPWM.set_channel_value(2, 0);      
-      faboPWM.set_channel_value(3, hardware.motor_left.current_pwm); // clockwise 
-    } else{
-      faboPWM.set_channel_value(2, hardware.motor_left.current_pwm);      
-      faboPWM.set_channel_value(3, 0); // clockwise 
-    }
+//         // check if the target pwm hasn't been reached or there is a change in direction
+//     // if ((hardware.motor_left.current_pwm != hardware.motor_left.target_pwm) || (hardware.motor_left.flag.direction != hardware.motor_left.flag.target_direction)){
+//     //     // change in direction?
+//     //   if (hardware.motor_left.flag.direction != hardware.motor_left.flag.target_direction){
+//     //       // Make sure current pwm doesnt go negative
+//     //     if (hardware.motor_left.current_pwm != STOPPED_PWM_VAL)hardware.motor_left.current_pwm--;
+//     //       // Decrease speed till minimum speed is hit.
+//     //     if (hardware.motor_left.current_pwm <= MIN_PWM_VAL){
+//     //       hardware.motor_left.flag.direction = hardware.motor_left.flag.target_direction;
+//     //     }
+//     //       // direction is the same, increment to get to the target PWM
+//     //   } else {
+//     //       // If in range set to target PWM
+//     //     if (hardware.motor_left.current_pwm > (hardware.motor_left.target_pwm-PWM_INCREMENTAL_VAL)){
+//     //       hardware.motor_left.current_pwm = hardware.motor_left.target_pwm;
+//     //     } else {
+//     //         // Increment to the target PWM
+//     //       if ((hardware.motor_left.target_pwm-hardware.motor_left.current_pwm) > NEAR_TARGET_VAL) hardware.motor_left.current_pwm += PWM_INCREMENTAL_VAL*10;
+//     //       else hardware.motor_left.current_pwm += PWM_INCREMENTAL_VAL;
+//     //     }
+//     //   }
+//     // }
+//     //      // check if the target pwm hasn't been reached or there is a change in direction
+//     // if ((hardware.motor_right.current_pwm != hardware.motor_right.target_pwm) || (hardware.motor_right.flag.direction != hardware.motor_right.flag.target_direction)){
+//     //     // change in direction?
+//     //   if (hardware.motor_right.flag.direction != hardware.motor_right.flag.target_direction){
+//     //       // Make sure current pwm doesnt go negative
+//     //     if (hardware.motor_right.current_pwm != STOPPED_PWM_VAL)hardware.motor_right.current_pwm--;
+//     //       // Decrease speed till minimum speed is hit.
+//     //     if (hardware.motor_right.current_pwm <= MIN_PWM_VAL){
+//     //       hardware.motor_right.flag.direction = hardware.motor_right.flag.target_direction;
+//     //     }
+//     //       // direction is the same, increment to get to the target PWM
+//     //   } else {
+//     //       // If in range set to target PWM
+//     //     if (hardware.motor_right.current_pwm > (hardware.motor_right.target_pwm-PWM_INCREMENTAL_VAL)){
+//     //       hardware.motor_right.current_pwm = hardware.motor_right.target_pwm;
+//     //     } else {
+//     //         // Increment to the target PWM
+//     //       if ((hardware.motor_right.target_pwm-hardware.motor_right.current_pwm) > NEAR_TARGET_VAL) hardware.motor_right.current_pwm += PWM_INCREMENTAL_VAL*10;
+//     //       else hardware.motor_right.current_pwm += PWM_INCREMENTAL_VAL;
+//     //     }
+//     //   } 
+//     // } 
+//   }
 
-    if (hardware.motor_right.flag.direction == DIR_FORWARD){
-        faboPWM.set_channel_value(0, 0);      
-        faboPWM.set_channel_value(1, hardware.motor_right.current_pwm); // clockwise 
-    } else{
-      faboPWM.set_channel_value(0, hardware.motor_right.current_pwm);      
-      faboPWM.set_channel_value(1, 0); // clockwise 
-    }
-
-        // check if the target pwm hasn't been reached or there is a change in direction
-    // if ((hardware.motor_left.current_pwm != hardware.motor_left.target_pwm) || (hardware.motor_left.flag.direction != hardware.motor_left.flag.target_direction)){
-    //     // change in direction?
-    //   if (hardware.motor_left.flag.direction != hardware.motor_left.flag.target_direction){
-    //       // Make sure current pwm doesnt go negative
-    //     if (hardware.motor_left.current_pwm != STOPPED_PWM_VAL)hardware.motor_left.current_pwm--;
-    //       // Decrease speed till minimum speed is hit.
-    //     if (hardware.motor_left.current_pwm <= MIN_PWM_VAL){
-    //       hardware.motor_left.flag.direction = hardware.motor_left.flag.target_direction;
-    //     }
-    //       // direction is the same, increment to get to the target PWM
-    //   } else {
-    //       // If in range set to target PWM
-    //     if (hardware.motor_left.current_pwm > (hardware.motor_left.target_pwm-PWM_INCREMENTAL_VAL)){
-    //       hardware.motor_left.current_pwm = hardware.motor_left.target_pwm;
-    //     } else {
-    //         // Increment to the target PWM
-    //       if ((hardware.motor_left.target_pwm-hardware.motor_left.current_pwm) > NEAR_TARGET_VAL) hardware.motor_left.current_pwm += PWM_INCREMENTAL_VAL*10;
-    //       else hardware.motor_left.current_pwm += PWM_INCREMENTAL_VAL;
-    //     }
-    //   }
-    // }
-    //      // check if the target pwm hasn't been reached or there is a change in direction
-    // if ((hardware.motor_right.current_pwm != hardware.motor_right.target_pwm) || (hardware.motor_right.flag.direction != hardware.motor_right.flag.target_direction)){
-    //     // change in direction?
-    //   if (hardware.motor_right.flag.direction != hardware.motor_right.flag.target_direction){
-    //       // Make sure current pwm doesnt go negative
-    //     if (hardware.motor_right.current_pwm != STOPPED_PWM_VAL)hardware.motor_right.current_pwm--;
-    //       // Decrease speed till minimum speed is hit.
-    //     if (hardware.motor_right.current_pwm <= MIN_PWM_VAL){
-    //       hardware.motor_right.flag.direction = hardware.motor_right.flag.target_direction;
-    //     }
-    //       // direction is the same, increment to get to the target PWM
-    //   } else {
-    //       // If in range set to target PWM
-    //     if (hardware.motor_right.current_pwm > (hardware.motor_right.target_pwm-PWM_INCREMENTAL_VAL)){
-    //       hardware.motor_right.current_pwm = hardware.motor_right.target_pwm;
-    //     } else {
-    //         // Increment to the target PWM
-    //       if ((hardware.motor_right.target_pwm-hardware.motor_right.current_pwm) > NEAR_TARGET_VAL) hardware.motor_right.current_pwm += PWM_INCREMENTAL_VAL*10;
-    //       else hardware.motor_right.current_pwm += PWM_INCREMENTAL_VAL;
-    //     }
-    //   } 
-    // } 
-  }
-
-  interrupts();
-}
+//   interrupts();
+// }
