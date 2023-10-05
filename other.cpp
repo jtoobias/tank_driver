@@ -142,7 +142,7 @@ void interrupt_setup(void){
   // Enable PCIE2 Bit3 = 1 (Port D)
   PCICR |= 0x04;
   // Select PCINT22 and 20 Bit6 and 4 = 1 (Pin D6&4) also 2&3
-  PCMSK2 |= 0x6C;
+  PCMSK2 |= 0x5C;
   // Enable interrupts globally
   sei();
 }

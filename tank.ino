@@ -313,7 +313,7 @@ ISR (PCINT2_vect)
   // digitalWrite(LED,HIGH);
   cli();
 
-    // 67 pulses per rev on RIght side
+    // 136 pulses per rev on RIght side
   if ((digitalRead(PIN_ENCODER_RIGHT_A) != encoder_R.state.a) || (digitalRead(PIN_ENCODER_RIGHT_B) != encoder_R.state.b)){
     r_count ++;
     Serial.println(r_count);
