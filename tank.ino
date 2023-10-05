@@ -187,6 +187,9 @@ Imu imu;
 
 uint16_t encoder_update_time = 0;
 uint32_t last_imu_update;
+
+volatile uint32_t r_count = 0;
+volatile uint32_t l_count = 0;
 void setup()
 {
   Serial.begin(115200);
@@ -270,12 +273,12 @@ void loop()
     hardware.motor_right.speed = (encoder_R.pulses - encoder_R.last_pulses)/encoder_update_time;
     encoder_R.last_pulses = encoder_R.pulses;
     encoder_L.last_pulses = encoder_L.pulses;
-    Serial.print(String(encoder_R.pulses)+ " ");
-    Serial.println(String(encoder_L.pulses));
+    // Serial.print(String(encoder_R.pulses)+ " ");
+    // Serial.println(String(encoder_L.pulses));
     // Serial.print(String(hardware.motor_left.speed))
     // Serial.print(String(hardware.motor_right.speed))
 
-    faboPWM.set_channel_value(2, 0);      
+    faboPWM.set_channel_value(2,0);      
     faboPWM.set_channel_value(3,0);
 
     faboPWM.set_channel_value(0, 0);      
@@ -309,74 +312,122 @@ ISR (PCINT2_vect)
 // void rotaryEncoder_right (void){
   // digitalWrite(LED,HIGH);
   cli();
+
+    // 67 pulses per rev on RIght side
   if ((digitalRead(PIN_ENCODER_RIGHT_A) != encoder_R.state.a) || (digitalRead(PIN_ENCODER_RIGHT_B) != encoder_R.state.b)){
+    r_count ++;
+    Serial.println(r_count);
     encoder_R.state.a = (digitalRead(PIN_ENCODER_RIGHT_A) != 0);
     encoder_R.state.b = (digitalRead(PIN_ENCODER_RIGHT_B) != 0);
-    if (encoder_R.state.a /*&& !encoder_R.state.last_a*/){
-      // digitalWrite(DEBUG,HIGH);
-          // Both pins are high and we expected A line, This means B line was already high
-      if (encoder_R.state.a && encoder_R.state.b && encoder_R.flag.a){
-          encoder_R.direction = ENCODER_DIR_COUNTER_CLOCKWISE;                // Not checked
-          encoder_R.pulses++;
-          encoder_R.flag.ab_changed = TRUE;
-          encoder_R.flag.a = FALSE;
-          encoder_R.flag.b = FALSE;
-          
-      } else if (encoder_R.state.a && !encoder_R.state.b){
-        encoder_R.flag.b = TRUE;
-      // digitalWrite(DEBUG,LOW);
+if  (encoder_R.state.a > encoder_R.state.last_a){
+        // Serial.println(" A State " + String(encoder_R.state.a) + " A last State " + String(encoder_R.state.a));
+      if (encoder_R.state.b == 0){
+        // Expect B to go high meaning we are going clkwise
+        encoder_R.direction = ENCODER_DIR_COUNTER_CLOCKWISE;
+      } else{
+        // Expect B to go low mean we are going anti-clkwise
+        encoder_R.direction = ENCODER_DIR_CLOCKWISE;
       }
-    } 
-    
-    if (encoder_R.state.b /*&& !encoder_R.state.last_b*/){
-        // Both pins are high and we expected B line, This means A line was already high
-      if (encoder_R.state.a && encoder_R.state.b && encoder_R.flag.b){
-        encoder_R.direction = ENCODER_DIR_CLOCKWISE;  // Not checked
-        encoder_R.pulses--;
-        encoder_R.flag.ab_changed = TRUE;
-        encoder_R.flag.a = FALSE;
-        encoder_R.flag.b = FALSE;
-      } else if (!encoder_R.state.a && encoder_R.state.b){
-        encoder_R.flag.a = TRUE;
+    } else if  (encoder_R.state.a < encoder_R.state.last_a){
+        // Serial.println(" A State " + String(encoder_R.state.a) + " A last State " + String(encoder_R.state.last_a));
+      if (encoder_R.state.b == 0){
+        // Expect B to go high meaning we are going clkwise
+        encoder_R.direction = ENCODER_DIR_CLOCKWISE;
+      } else{
+        // Expect B to go low mean we are going anti-clkwise
+        encoder_R.direction = ENCODER_DIR_COUNTER_CLOCKWISE;
       }
     }
-    encoder_R.flag.ab_changed = TRUE;
-  }
-  if ((digitalRead(PIN_ENCODER_LEFT_A) != encoder_L.state.a) || (digitalRead(PIN_ENCODER_LEFT_B) != encoder_L.state.b)){
+       // Change has been high
+    if  (encoder_R.state.b > encoder_R.state.last_b){
+        // Serial.println(" B State " + String(encoder_R.state.b) + " B last State " + String(encoder_R.state.last_b));
+      if (encoder_R.state.a == 0){
+        // Expect A to go high meaning we are going clkwise
+        encoder_R.direction = ENCODER_DIR_CLOCKWISE;
+      } else{
+        // Expect A to go low mean we are going anti-clkwise
+        encoder_R.direction = ENCODER_DIR_COUNTER_CLOCKWISE;
+      }
+    } else if  (encoder_R.state.b < encoder_R.state.last_b){
+        // Serial.println(" B State " + String(encoder_R.state.b) + " B last State " + String(encoder_R.state.last_b));
+      if (encoder_R.state.a == 0){
+        // Expect A to go high meaning we are going Counter clockwise
+        encoder_R.direction = ENCODER_DIR_COUNTER_CLOCKWISE;
+      } else{
+        // Expect B to go low mean we are going clkwise
+        encoder_R.direction = ENCODER_DIR_CLOCKWISE;
+      }
+    }
 
+    if (encoder_R.direction == ENCODER_DIR_CLOCKWISE){
+      encoder_R.pulses++;
+      Serial.println("RIGHT Count Increase " + String(encoder_R.pulses));
+    } else if (encoder_R.direction == ENCODER_DIR_COUNTER_CLOCKWISE) {
+      encoder_R.pulses--;
+      Serial.println("RIGHT Count Decrease " + String(encoder_R.pulses));
+    }
+    encoder_R.state.last_a = encoder_R.state.a;
+    encoder_R.state.last_b = encoder_R.state.b;
+  }
+    // 136 pulses per rev
+  if ((digitalRead(PIN_ENCODER_LEFT_A) != encoder_L.state.a) || (digitalRead(PIN_ENCODER_LEFT_B) != encoder_L.state.b)){
+    
+    l_count ++;
+    Serial.println(l_count);
     encoder_L.state.a = (digitalRead(PIN_ENCODER_LEFT_A) != 0);
     encoder_L.state.b = (digitalRead(PIN_ENCODER_LEFT_B) != 0);
-    
-  //  Serial.println(String(encoder.state_value));
-    if (encoder_L.state.a /*&& !encoder_L.state.last_a*/){
-        // Both pins are high and we expected A line, This means B line was already high
-      if (encoder_L.state.a && encoder_L.state.b && encoder_L.flag.a){
-          encoder_L.direction = ENCODER_DIR_COUNTER_CLOCKWISE;  // Not checked
-          encoder_L.pulses++;
-          encoder_L.flag.ab_changed = TRUE;
-          encoder_L.flag.a = FALSE;
-          encoder_L.flag.b = FALSE;
-            // 
-      } else if (encoder_L.state.a && !encoder_L.state.b) encoder_L.flag.b = TRUE;
+
+        // Change has been high
+    if  (encoder_L.state.a > encoder_L.state.last_a){
+      if (encoder_L.state.b == 0){
+        // Expect B to go high meaning we are going clkwise
+        encoder_L.direction = ENCODER_DIR_COUNTER_CLOCKWISE;
+      } else{
+        // Expect B to go low mean we are going anti-clkwise
+        encoder_L.direction = ENCODER_DIR_CLOCKWISE;
+      }
+    } else if  (encoder_L.state.a < encoder_L.state.last_a){
+      if (encoder_L.state.b == 0){
+        // Expect B to go high meaning we are going clkwise
+        encoder_L.direction = ENCODER_DIR_CLOCKWISE;
+      } else{
+        // Expect B to go low mean we are going anti-clkwise
+        encoder_L.direction = ENCODER_DIR_COUNTER_CLOCKWISE;
+      }
     }
-    
-    if (encoder_L.state.b /*&& !encoder_L.state.last_b*/){
-        // Both pins are high and we expected B line, This means A line was already high
-      if (encoder_L.state.a && encoder_L.state.b && encoder_L.flag.b){
-        encoder_L.direction = ENCODER_DIR_CLOCKWISE;  // Not checked
-        encoder_L.pulses--;
-        encoder_L.flag.ab_changed = TRUE;
-        encoder_L.flag.a = FALSE;
-        encoder_L.flag.b = FALSE;
-      } else if (!encoder_L.state.a && encoder_L.state.b) encoder_L.flag.a = TRUE;
+       // Change has been high
+    if  (encoder_L.state.b > encoder_L.state.last_b){
+      if (encoder_L.state.a == 0){
+        // Expect A to go high meaning we are going clkwise
+        encoder_L.direction = ENCODER_DIR_CLOCKWISE;
+      } else{
+        // Expect A to go low mean we are going anti-clkwise
+        encoder_L.direction = ENCODER_DIR_COUNTER_CLOCKWISE;
+      }
+    } else if  (encoder_L.state.b < encoder_L.state.last_b){
+        // Serial.println(" B State " + String(encoder_L.state.b) + " B last State " + String(encoder_L.state.last_b));
+      if (encoder_L.state.a == 0){
+        // Expect A to go high meaning we are going Counter clockwise
+        encoder_L.direction = ENCODER_DIR_COUNTER_CLOCKWISE;
+      } else{
+        // Expect B to go low mean we are going clkwise
+        encoder_L.direction = ENCODER_DIR_CLOCKWISE;
+      }
     }
 
-    encoder_L.flag.ab_changed = TRUE;
+    if (encoder_L.direction == ENCODER_DIR_CLOCKWISE){
+      encoder_L.pulses--;
+      Serial.println("Left Count Decrease " + String(encoder_L.pulses));
+    } else if (encoder_L.direction == ENCODER_DIR_COUNTER_CLOCKWISE) {
+      encoder_L.pulses++;
+      Serial.println("Left Count Increase " + String(encoder_L.pulses));
+    }
+    encoder_L.state.last_b = encoder_L.state.b;
+    encoder_L.state.last_a = encoder_L.state.a;  
   }
    // restart interrupts
   // Enable interrupts globally
   sei();
-  // digitalWrite(LED,LOW);
 }
 
 /*
