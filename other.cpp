@@ -18,6 +18,7 @@ extern hardware_s hardware;
 extern encoder_s encoder_L;
 extern encoder_s encoder_R;
 extern char global_data[GLOBAL_ARRAY_SIZE];
+extern rx_s rx_comms;
 
 #ifdef __cplusplus
 extern "C" {
@@ -95,7 +96,6 @@ void init_variables (void) {
   hardware.motor_left.control.last_error = 0;
   hardware.motor_right.control.error = 0;
   hardware.motor_right.control.last_error = 0;
-
 }
 
 void init_pins(void){

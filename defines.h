@@ -9,6 +9,7 @@
 #define _DEFINES_
 #define TRUE  1
 #define FALSE 0
+#define PI 3.1415926535897932384626
 
 #define GLOBAL_ARRAY_SIZE 50
 
@@ -31,25 +32,43 @@
 #define DIR_BACKWARD  1
 
 
-#define STOPPED_PWM_VAL  0
-#define MIN_PWM_VAL      0
-#define MAX_PWM_VAL      4095
+#define STOPPED_PWM_VAL     0
+#define MIN_PWM_VAL         0
+#define MAX_PWM_VAL         4095
 #define PWM_INCREMENTAL_VAL 10
-#define NEAR_TARGET_VAL   200
+#define NEAR_TARGET_VAL     200
 
 #define MAX_SPEED       5
 
 #define ENCODER_DIR_UNKNOWN             0
 #define ENCODER_DIR_COUNTER_CLOCKWISE   1
 #define ENCODER_DIR_CLOCKWISE           2
-#define ENCODER_PULSES_PER_REVOLUTION   240   // Re-check This is kinda of a guess
+#define ENCODER_PULSES_PER_REVOLUTION   136   // Pulses per wheel revolution
 
-#define BELT_LENGTH   0.409         // m
-#define WHEEL_TRACK   0.150  //m 
+#define BELT_LENGTH           0.409         // m
+#define WHEEL_TRACK           0.150         // m 
+#define WHEEL_DIAMETER        0.040         // m 
+#define WHEEL_CIRCUMFERENCE   WHEEL_DIAMETER*PI
+#define METERS_PER_PULSE      WHEEL_CIRCUMFERENCE/ENCODER_PULSES_PER_REVOLUTION
+
+#define SOF '{'
+#define EOF '}'
 
 #define P_GAIN        0.75
 // #define I_GAIN        0.75
 // #define D_GAIN        0.75
+
+
+
+#define READ_ENCODERS             'E'
+#define READ_ENCODERS_RESPONSE    'e'
+#define RESET_ENCODERS            'R'
+#define RESET_ENCODERS_RESPONSE   'r'
+#define SET_MOTOR_SPEEDS          'S'
+#define SET_MOTOR_SPEEDS_RESPONSE 's'
+#define UPDATE_PID                'P'
+#define UPDATE_PID_RESPONSE       'p'
+
 /*
  * Classes
  */
@@ -63,12 +82,22 @@
 // };
   // Struct to hold control variables
 typedef struct{
-  // int p_gain;
-  // int i_gain;
-  // int d_gain;
+  int p_gain;
+  int i_gain;
+  int d_gain;
+  int o_gain;
   volatile int error;
   volatile int last_error;
 }pid_s;
+
+
+typedef struct{
+  int cmd;
+  int data_length;
+  int count;
+  bool packet_started;
+  char buffer[50];
+}rx_s;
 
 /*
  * Structures & Variables
@@ -134,13 +163,13 @@ typedef struct{
     unsigned int target_pwm;
     unsigned int current_pwm;
     float speed;
-    pid_s control;
 }motor_s;
 
 typedef struct{
   io_s io;
   motor_s motor_left;
   motor_s motor_right;
+  pid_s control;
 
 }hardware_s;
 
@@ -149,5 +178,6 @@ extern encoder_s encoder_L;
 extern encoder_s encoder_R;
 extern char global_data[GLOBAL_ARRAY_SIZE];
 extern volatile uint32_t ms_timer;
+extern rx_s rx_comms;
 
 #endif
