@@ -42,7 +42,7 @@ void init_pins(void);
 void interrupt_setup(void);
 void do_first_boot (void);
 void manage_encoder_pulses(encoder_s *encoder);
-void send_packet (int8_t *data,int8_t len);
+void send_packet(char cmd,int data_length,char *data);
   // Declared in main
 extern void rotaryEncoder_left (void);
 extern void rotaryEncoder_right (void);

@@ -38,23 +38,27 @@
 #define PWM_INCREMENTAL_VAL 10
 #define NEAR_TARGET_VAL     200
 
-#define MAX_SPEED       5
 
 #define ENCODER_DIR_UNKNOWN             0
 #define ENCODER_DIR_COUNTER_CLOCKWISE   1
 #define ENCODER_DIR_CLOCKWISE           2
 #define ENCODER_PULSES_PER_REVOLUTION   136   // Pulses per wheel revolution
 
-#define BELT_LENGTH           0.409         // m
-#define WHEEL_TRACK           0.150         // m 
-#define WHEEL_DIAMETER        0.040         // m 
-#define WHEEL_CIRCUMFERENCE   WHEEL_DIAMETER*PI
-#define METERS_PER_PULSE      WHEEL_CIRCUMFERENCE/ENCODER_PULSES_PER_REVOLUTION
+#define BELT_LENGTH                     409         // mm
+#define WHEEL_TRACK                     150         // mm 
+#define WHEEL_DIAMETER                  50         // mm
+#define WHEEL_RADIUS                    WHEEL_DIAMETER/2
+#define WHEEL_CIRCUMFERENCE             WHEEL_DIAMETER*PI
+#define ENCODER_PULSES_PER_TRACK_REV    ((BELT_LENGTH/WHEEL_CIRCUMFERENCE)*ENCODER_PULSES_PER_REVOLUTION)
+#define MM_PER_PULSE                BELT_LENGTH/ENCODER_PULSES_PER_TRACK_REV
+
+#define MAX_SPEED                       50                    // mm/s
+#define SPEED_TO_PWM         float(MAX_PWM_VAL/MAX_SPEED) // PWM/mm/s
 
 #define SOF '{'
 #define EOF '}'
 
-#define P_GAIN        0.75
+#define P_GAIN        0.02
 // #define I_GAIN        0.75
 // #define D_GAIN        0.75
 
@@ -82,17 +86,17 @@
 // };
   // Struct to hold control variables
 typedef struct{
-  int p_gain;
-  int i_gain;
-  int d_gain;
-  int o_gain;
+  float p_gain;
+  float i_gain;
+  float d_gain;
+  float o_gain;
   volatile int error;
   volatile int last_error;
 }pid_s;
 
 
 typedef struct{
-  int cmd;
+  char cmd;
   int data_length;
   int count;
   bool packet_started;
@@ -160,16 +164,17 @@ typedef struct{
         }flag;
         char flags_value;
     };
-    unsigned int target_pwm;
-    unsigned int current_pwm;
-    float speed;
+    int16_t target_speed;
+    int16_t current_speed;
+    int16_t target_pwm;
+    int16_t current_pwm;
+    pid_s control;
 }motor_s;
 
 typedef struct{
   io_s io;
   motor_s motor_left;
   motor_s motor_right;
-  pid_s control;
 
 }hardware_s;
 

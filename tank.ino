@@ -39,84 +39,45 @@ uint8_t len = 4; // pulse,pulse,time_change,CRC
 Imu imu;
 
 uint16_t encoder_update_time = 0;
-uint32_t last_imu_update;
+uint32_t last_imu_update = 0;
+uint32_t last_pid_update = 0;
 
 volatile uint32_t r_count = 0;
 volatile uint32_t l_count = 0;
+
+
+volatile unsigned long millisCount = 0;
 
 /*
  * FUNCTIONS
  */
  
-
-// A pair of varibles to help parse serial commands
-int arg = 0;
-int index = 0;
-
 // Variable to hold an input character
 char chr;
 
-// Variable to hold the current single-character command
-char cmd;
-
-// Character arrays to hold the first and second arguments
-char argv1[16];
-char argv2[16];
-
-// The arguments converted to integers
-long arg1;
-long arg2;
-
-// /* Clear the current command parameters */
-void resetCommand() {
-  cmd = NULL;
-  memset(argv1, 0, sizeof(argv1));
-  memset(argv2, 0, sizeof(argv2));
-  arg1 = 0;
-  arg2 = 0;
-  arg = 0;
-  index = 0;
-}
-
-
-
-// /* Run a command.  Commands are defined in commands.h */
-int runCommand() {
-  int i = 0;
-  char *p = argv1;
-  char *str;
-  int pid_args[4];
-  arg1 = atoi(argv1);
-  arg2 = atoi(argv2);
-  
-  
-}
-
-void send_packet(int cmd,int data_length,char *data){
-  int i = 0;
-  Serial.print(SOF);
-  Serial.print(cmd);
-  Serial.print(data_length);
-  for (i = 0;i < data_length;i++){
-    Serial.print(String(data[i]));
-  }
-  Serial.print(EOF);
-}
 
 char packet_handler(void){
   switch(rx_comms.cmd) {
+    case SET_MOTOR_SPEEDS:
+      // Serial.print(SOF);
+      Serial.print("SET_MOTOR_SPEEDS ");
+      break;
+
     case READ_ENCODERS:
       // Serial.print(SOF);
-      // Serial.print(READ_ENCODERS);
+      Serial.print("READ_ENCODERS ");
       // Serial.print("2");
-      // Serial.print(String(encoder_L.pulses));
-      // Serial.print(" ");
-      // Serial.print(String(encoder_R.pulses));
-      // Serial.println(EOF);
+      Serial.print(String(encoder_L.pulses));
+      Serial.print(" ");
+      Serial.print(String(encoder_R.pulses));
+      Serial.println(EOF);
       *(long *)global_data[0] = encoder_L.pulses;
       *(long *)global_data[4] = encoder_R.pulses;
+      Serial.println((*(long *)global_data[0]),HEX);
+      Serial.println("HI");
       send_packet(READ_ENCODERS_RESPONSE,8,global_data);
       break;
+
     case RESET_ENCODERS:
       encoder_L.pulses = 0;
       encoder_R.pulses = 0;
@@ -124,9 +85,7 @@ char packet_handler(void){
       encoder_R.last_pulses = 0;
       Serial.println("OK");
       break;
-    case SET_MOTOR_SPEEDS:
-      /* Reset the auto stop timer */
-      break;
+
     case UPDATE_PID:
       // while ((str = strtok_r(p, ":", &p)) != '\0') {
       //   pid_args[i] = atoi(str);
@@ -139,10 +98,12 @@ char packet_handler(void){
       Serial.println("OK");
       break;
     default:
-      Serial.println("Invalid Command");
+      Serial.print("Invalid Command ");
+      Serial.println(rx_comms.cmd,HEX);
       break;
   }
 }
+
 
 void setup()
 {
@@ -158,6 +119,7 @@ void setup()
   }
   faboPWM.set_hz(15000);
   Serial.println("Init");
+  hardware.motor_right.target_speed = 30;
 
   digitalWrite(LED,HIGH);
   last_imu_update = millis();
@@ -165,45 +127,60 @@ void setup()
 
 void loop()
 { 
+  int16_t iValueL = 0, iValueR = 0;
   //float ax,ay,az,headingDegrees,heading,declinationAngle;
 
   while (Serial.available() > 0) {
     // Read the next character
     chr = Serial.read();
+    Serial.println(chr);
 
       // Message has started
     if (chr == SOF){
+      Serial.println("Start Of Frame ");
       //  Clear buffer and cmd variable
       rx_comms.cmd = -1;
       rx_comms.data_length = -1;
       rx_comms.packet_started = TRUE;
+      rx_comms.count = 0;
       // start storing the serial input untill end of buffer
-    }else if (chr == EOF){
+    } else if (chr == EOF){
+      Serial.println("End Of Frame ");
       rx_comms.packet_started = FALSE;
       // Call handler function
       packet_handler();
 
-    } else if (rx_comms.packet_started == TRUE)
-    if (rx_comms.count == 0){
-      rx_comms.cmd = atoi(chr);
-    }else if (rx_comms.count == 1){
-      rx_comms.data_length = atoi(chr);
+    } else if (rx_comms.packet_started == TRUE){
+      Serial.print(rx_comms.count);
+      if (rx_comms.cmd  == -1){
+        Serial.print("CMD ");
+        Serial.println(chr);
+        rx_comms.cmd = chr;
+        Serial.println(rx_comms.cmd,HEX);
+      }else if (rx_comms.data_length == -1){
+        Serial.print("Data Length ");
+        Serial.println(chr);
+        rx_comms.data_length = atoi(chr);
+      } else {
+        rx_comms.buffer[rx_comms.count] = atoi(chr);
+        rx_comms.count ++;
+      }
     }
-    rx_comms.buffer[rx_comms.count] = atoi(chr);
-    rx_comms.count ++;
   }
 
   
   if ((encoder_update_time = diff_millis(last_encoder_speed_update)) >= 100){
-    uint32_t encoder_diff = 0;
-    hardware.motor_left.speed = ((encoder_L.pulses - encoder_L.last_pulses)/encoder_update_time)*METERS_PER_PULSE;
-    hardware.motor_right.speed = ((encoder_R.pulses - encoder_R.last_pulses)/encoder_update_time)*METERS_PER_PULSE;
+    hardware.motor_left.current_speed = (((encoder_L.pulses - encoder_L.last_pulses)*1000/encoder_update_time)*MM_PER_PULSE);
+    hardware.motor_right.current_speed = (((encoder_R.pulses - encoder_R.last_pulses)*1000/encoder_update_time)*MM_PER_PULSE);
+    // Serial.print(String(MM_PER_PULSE)+ " ");
+    // Serial.print(String(encoder_update_time)+ " ");
+    // Serial.println(String((encoder_L.pulses - encoder_L.last_pulses)));
+
     encoder_R.last_pulses = encoder_R.pulses;
     encoder_L.last_pulses = encoder_L.pulses;
-    Serial.print(String(encoder_R.pulses)+ " ");
-    Serial.println(String(encoder_L.pulses));
-    Serial.print(String(hardware.motor_left.speed) + " ");
-    Serial.println(String(hardware.motor_right.speed));
+
+    Serial.print(String(hardware.motor_left.current_speed) + " ");
+    Serial.println(String(hardware.motor_right.current_speed));
 
     // faboPWM.set_channel_value(2,0);      
     // faboPWM.set_channel_value(3,0);
@@ -211,6 +188,7 @@ void loop()
     // faboPWM.set_channel_value(0, 0);      
     // faboPWM.set_channel_value(1, 0); // clockwise 
     last_encoder_speed_update = millis();
+
   } 
 
   // Serial.println ("hi");
@@ -224,7 +202,64 @@ void loop()
     // Serial.println("LED "+String(digitalRead(LED)));
 
     last_imu_update = millis();
-  } 
+  }
+
+  if (diff_millis(last_pid_update) >= 50){
+     last_pid_update = millis();
+      //  Calculate the Motor pwm errors
+    hardware.motor_left.control.error = hardware.motor_left.target_speed-hardware.motor_left.current_speed;
+    hardware.motor_right.control.error = hardware.motor_right.target_speed-hardware.motor_right.current_speed;
+
+    iValueL = hardware.motor_left.control.error*hardware.motor_left.control.p_gain;
+    iValueR = hardware.motor_right.control.error*hardware.motor_right.control.p_gain;
+    // Serial.print(String(hardware.motor_right.control.error) + " ");
+    // Serial.print(String(iValueR) + " ");
+    // Serial.print(String(iValueR * SPEED_TO_PWM) + " ");
+    // Serial.println(String(hardware.motor_right.control.p_gain));
+
+    hardware.motor_left.control.last_error = hardware.motor_left.control.error;
+    hardware.motor_right.control.last_error = hardware.motor_right.control.error;
+
+    if (iValueL > 0){
+      hardware.motor_left.flag.direction = DIR_FORWARD;
+      hardware.motor_left.current_pwm += iValueL * float(SPEED_TO_PWM);
+      if (hardware.motor_left.current_pwm > MAX_PWM_VAL) hardware.motor_left.current_pwm = MAX_PWM_VAL;
+      else if (hardware.motor_left.current_pwm < 0) hardware.motor_left.current_pwm = 0;
+      faboPWM.set_channel_value(0, hardware.motor_left.current_pwm);      
+      faboPWM.set_channel_value(1, 0); // anti-clockwise 
+
+    } else {
+      hardware.motor_left.flag.direction = DIR_BACKWARD;
+      hardware.motor_left.current_pwm += int16_t(iValueL * float(SPEED_TO_PWM) * -1);
+      if (hardware.motor_left.current_pwm > MAX_PWM_VAL) hardware.motor_left.current_pwm = MAX_PWM_VAL;
+      else if (hardware.motor_left.current_pwm < 0) hardware.motor_left.current_pwm = 0;
+      faboPWM.set_channel_value(0, 0);      
+      faboPWM.set_channel_value(1, hardware.motor_left.current_pwm); // clockwise 
+    }
+
+
+    if (iValueR > 0){
+      hardware.motor_right.flag.direction = DIR_FORWARD;
+      hardware.motor_right.current_pwm += int16_t(iValueR * float(SPEED_TO_PWM));
+      Serial.println(String(hardware.motor_right.current_pwm) +" "+ String(hardware.motor_right.control.error));
+      if (hardware.motor_right.current_pwm > MAX_PWM_VAL) hardware.motor_right.current_pwm = MAX_PWM_VAL;
+      else if (hardware.motor_right.current_pwm < 0) hardware.motor_right.current_pwm = 0;
+
+      faboPWM.set_channel_value(2, 0);      
+      faboPWM.set_channel_value(3, hardware.motor_right.current_pwm); // clockwise 
+    } else {
+      hardware.motor_right.flag.direction = DIR_BACKWARD;
+      hardware.motor_right.current_pwm += int16_t(iValueR * float(SPEED_TO_PWM) * -1);
+      Serial.println(String(hardware.motor_right.current_pwm));
+      if (hardware.motor_right.current_pwm > MAX_PWM_VAL) hardware.motor_right.current_pwm = MAX_PWM_VAL;
+      else if (hardware.motor_right.current_pwm < 0) hardware.motor_right.current_pwm = 0;
+      faboPWM.set_channel_value(2, hardware.motor_right.current_pwm);      
+      faboPWM.set_channel_value(3, 0); // anti-clockwise 
+
+    }
+  }
+
+
 }
     
 ISR (PCINT2_vect)
@@ -349,6 +384,20 @@ if  (encoder_R.state.a > encoder_R.state.last_a){
 /*
  * INTERRUPTS
  */
+  // Some reason this triggers every 33ms, Good enough for motor control
+//  ISR(TIMER1_COMPA_vect) {
+//   // This function will be called every 'interval' milliseconds
+//   cli();
+//   millisCount++;
+
+//     //  Manage
+//   if ((millisCount-last_pid_time) >= 50){
+   
+//   }
+  
+//   sei();
+//   // Your interrupt code goes here
+// }
   // millisecond timer interrupt
 // ISR(TIMER1_COMPA_vect){
 // void motorTimerCb() {

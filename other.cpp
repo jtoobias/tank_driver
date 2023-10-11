@@ -8,7 +8,6 @@ Notes:
 #include "EEPROM.h"
 #include "other.h"
 #include "defines.h"
-#include <TimerOne.h>
 
 /*******************************************************************************************/
 /*                                     G L O B A L S                                       */
@@ -96,6 +95,9 @@ void init_variables (void) {
   hardware.motor_left.control.last_error = 0;
   hardware.motor_right.control.error = 0;
   hardware.motor_right.control.last_error = 0;
+
+  hardware.motor_left.control.p_gain = P_GAIN;
+  hardware.motor_right.control.p_gain = P_GAIN;
 }
 
 void init_pins(void){
@@ -136,7 +138,18 @@ void interrupt_setup(void){
   // attachInterrupt(digitalPinToInterrupt(pin), ISR, mode) (recommended)
   // attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT_A), rotaryEncoder_left, RISING);
   // attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_LEFT_B), rotaryEncoder_left, RISING);
+  cli();           // Disable global interrupts
+  // TCCR1A = 0;      // Set entire TCCR1A register to 0
+  // TCCR1B = 0;      // Same for TCCR1B
 
+  // // Set compare match register to desired interval
+  // OCR1A = 1250;  // 16 MHz / 64 (prescaler) / 1000 (1 ms) - 1
+
+  // // Enable timer compare interrupt
+  // TIMSK1 |= (1 << OCIE1A);
+
+  // // Set prescaler to 64 and start the timer
+  // TCCR1B |= (1 << CS11);
 
  
   // Enable PCIE2 Bit3 = 1 (Port D)
@@ -151,23 +164,17 @@ void interrupt_setup(void){
 void do_first_boot (void) {
 }
 
-// Add cmd to packet if more commands are added
-void send_packet (int8_t *data,int8_t len){
-  int8_t i =0;
-  int32_t crc = 0;
- // Serial.write(cmd);
-  Serial.write(len);
-  crc += len; // +cmd
-  for (i=0;i < len;i++){
-    Serial.write(*data);
-    crc += *data;
-    data++;
+
+void send_packet(char cmd,int data_length,char *data){
+  int i = 0;
+  Serial.print(SOF);
+  Serial.print(cmd);
+  Serial.print(data_length);
+  for (i = 0;i < data_length;i++){
+    Serial.print(data[i]);
   }
-  crc = ~crc;
-  Serial.write(crc);
-  Serial.println("");
+  Serial.print(EOF);
 }
-  
 // Add cmd to packet if more commands are added
 void send_str (int8_t *data,int8_t len){
   int8_t i =0;
@@ -183,6 +190,13 @@ void send_str (int8_t *data,int8_t len){
   crc = ~crc;
   Serial.write(crc);
   Serial.println("");
+}
+
+// Function to set motor speeds based on linear and angular velocities
+void setMotorSpeeds(int16_t linearVelocity, float angularVelocity,int16_t *vRight, int16_t *vLeft) {
+  // Calculate angular velocities for each wheel
+  vRight = linearVelocity + int16_t((WHEEL_TRACK/2) * angularVelocity);
+  vLeft = linearVelocity - int16_t((WHEEL_TRACK/2) * angularVelocity); 
 }
 
 #ifdef __cplusplus
