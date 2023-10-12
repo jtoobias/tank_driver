@@ -98,6 +98,10 @@ void init_variables (void) {
 
   hardware.motor_left.control.p_gain = P_GAIN;
   hardware.motor_right.control.p_gain = P_GAIN;
+  hardware.motor_left.control.i_gain = I_GAIN;
+  hardware.motor_right.control.i_gain = I_GAIN;
+  hardware.motor_left.control.d_gain = D_GAIN;
+  hardware.motor_right.control.d_gain = D_GAIN;
 }
 
 void init_pins(void){

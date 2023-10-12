@@ -49,8 +49,9 @@
 #define WHEEL_DIAMETER                  50         // mm
 #define WHEEL_RADIUS                    WHEEL_DIAMETER/2
 #define WHEEL_CIRCUMFERENCE             WHEEL_DIAMETER*PI
-#define ENCODER_PULSES_PER_TRACK_REV    ((BELT_LENGTH/WHEEL_CIRCUMFERENCE)*ENCODER_PULSES_PER_REVOLUTION)
-#define MM_PER_PULSE                BELT_LENGTH/ENCODER_PULSES_PER_TRACK_REV
+#define ENCODER_PULSES_PER_TRACK_REV    float((BELT_LENGTH/WHEEL_CIRCUMFERENCE)*ENCODER_PULSES_PER_REVOLUTION)
+#define MM_PER_PULSE                float(BELT_LENGTH/ENCODER_PULSES_PER_TRACK_REV)
+#define UM_PER_PULSE                int(MM_PER_PULSE*1000)
 
 #define MAX_SPEED                       50                    // mm/s
 #define SPEED_TO_PWM         float(MAX_PWM_VAL/MAX_SPEED) // PWM/mm/s
@@ -58,9 +59,10 @@
 #define SOF '{'
 #define EOF '}'
 
-#define P_GAIN        0.02
-// #define I_GAIN        0.75
-// #define D_GAIN        0.75
+#define P_GAIN        0.05
+// #define P_GAIN        0.02
+#define I_GAIN        0.001
+#define D_GAIN        0.01
 
 
 
@@ -90,8 +92,8 @@ typedef struct{
   float i_gain;
   float d_gain;
   float o_gain;
-  volatile int error;
-  volatile int last_error;
+  volatile int16_t error;
+  volatile int16_t last_error;
 }pid_s;
 
 
