@@ -44,6 +44,7 @@
 #define ENCODER_DIR_CLOCKWISE           2
 #define ENCODER_PULSES_PER_REVOLUTION   136   // Pulses per wheel revolution
 
+
 #define BELT_LENGTH                     409         // mm
 #define WHEEL_TRACK                     150         // mm 
 #define WHEEL_DIAMETER                  50         // mm
@@ -53,17 +54,17 @@
 #define MM_PER_PULSE                float(BELT_LENGTH/ENCODER_PULSES_PER_TRACK_REV)
 #define UM_PER_PULSE                int(MM_PER_PULSE*1000)
 
-#define MAX_SPEED                       50                    // mm/s
+#define MAX_SPEED                       50.0                    // mm/s
 #define SPEED_TO_PWM         float(MAX_PWM_VAL/MAX_SPEED) // PWM/mm/s
 
 #define SOF '{'
 #define EOF '}'
 
 #define P_GAIN        0.05
-// #define P_GAIN        0.02
-#define I_GAIN        0.001
-#define D_GAIN        0.01
+#define I_GAIN        0.003
+#define D_GAIN        0.025
 
+#define MAX_SUM_ERROR   200
 
 
 #define READ_ENCODERS             'E'
@@ -92,8 +93,9 @@ typedef struct{
   float i_gain;
   float d_gain;
   float o_gain;
-  volatile int16_t error;
-  volatile int16_t last_error;
+  int32_t error_sum;
+  volatile float error;
+  volatile float last_error;
 }pid_s;
 
 
@@ -166,8 +168,8 @@ typedef struct{
         }flag;
         char flags_value;
     };
-    int16_t target_speed;
-    int16_t current_speed;
+    float target_speed;
+    float current_speed;
     int16_t target_pwm;
     int16_t current_pwm;
     pid_s control;

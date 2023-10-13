@@ -93,8 +93,10 @@ void init_variables (void) {
   hardware.io.state_value = 0;
   hardware.motor_left.control.error = 0;
   hardware.motor_left.control.last_error = 0;
+  hardware.motor_left.control.error_sum = 0;
   hardware.motor_right.control.error = 0;
   hardware.motor_right.control.last_error = 0;
+  hardware.motor_right.control.error_sum = 0;
 
   hardware.motor_left.control.p_gain = P_GAIN;
   hardware.motor_right.control.p_gain = P_GAIN;

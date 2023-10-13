@@ -119,7 +119,8 @@ void setup()
   faboPWM.set_hz(15000);
   Serial.println("Init");
     //  Convert from mm/s to um/s (so it can stay as int16_t)
-  hardware.motor_right.target_speed = 30*1000;
+  hardware.motor_right.target_speed = 30.0;
+  hardware.motor_left.target_speed = 30.0;
 
   digitalWrite(LED,HIGH);
   last_imu_update = millis();
@@ -170,7 +171,7 @@ void loop()
   }
 
   // Serial.println ("hi");
-  if (diff_millis(last_imu_update) >= 1000){
+  if (diff_millis(last_imu_update) >= 100){
     imu.read_mag();
     imu.read_accel();
     imu.read_gyro();
@@ -189,8 +190,8 @@ void loop()
     // Serial.print(String(encoder_update_time)+ " ");
     // Serial.println(String((encoder_L.pulses - encoder_L.last_pulses)));
 
-    hardware.motor_left.current_speed = (((encoder_L.pulses - encoder_L.last_pulses)*1000/encoder_update_time)*UM_PER_PULSE);
-    hardware.motor_right.current_speed = (((encoder_R.pulses - encoder_R.last_pulses)*1000/encoder_update_time)*UM_PER_PULSE);
+    hardware.motor_left.current_speed = (((encoder_L.pulses - encoder_L.last_pulses)*1000/encoder_update_time)*MM_PER_PULSE);
+    hardware.motor_right.current_speed = (((encoder_R.pulses - encoder_R.last_pulses)*1000/encoder_update_time)*MM_PER_PULSE);
     encoder_R.last_pulses = encoder_R.pulses;
     encoder_L.last_pulses = encoder_L.pulses;
 
@@ -200,14 +201,25 @@ void loop()
     hardware.motor_left.control.error = hardware.motor_left.target_speed-hardware.motor_left.current_speed;
     hardware.motor_right.control.error = hardware.motor_right.target_speed-hardware.motor_right.current_speed;
 
+    hardware.motor_left.control.error_sum += hardware.motor_left.control.error;
+    hardware.motor_right.control.error_sum += hardware.motor_right.control.error;
+
+    // Cap summed errors
+    if (hardware.motor_left.control.error_sum > MAX_SUM_ERROR) hardware.motor_left.control.error_sum = MAX_SUM_ERROR;
+    else if (hardware.motor_left.control.error_sum < -MAX_SUM_ERROR) hardware.motor_left.control.error_sum = -MAX_SUM_ERROR;
+
+    if (hardware.motor_right.control.error_sum > MAX_SUM_ERROR) hardware.motor_right.control.error_sum = MAX_SUM_ERROR;
+    else if (hardware.motor_right.control.error_sum < -MAX_SUM_ERROR) hardware.motor_right.control.error_sum = -MAX_SUM_ERROR;
+
     diff_error_L = hardware.motor_left.control.last_error - hardware.motor_left.control.error;
     diff_error_R = hardware.motor_right.control.last_error - hardware.motor_right.control.error;
-    Serial.print(String(hardware.motor_right.control.error) + " " + String(hardware.motor_right.control.last_error) + " ");
-    Serial.print(String(float(hardware.motor_right.control.error*hardware.motor_right.control.p_gain))+" ");
-    Serial.print(String(float(diff_error_R*hardware.motor_right.control.d_gain)));
-    iValueL = hardware.motor_left.control.error*hardware.motor_left.control.p_gain + diff_error_L*hardware.motor_left.control.d_gain;
-    iValueR = float(hardware.motor_right.control.error*hardware.motor_right.control.p_gain) + float(diff_error_R*hardware.motor_right.control.d_gain);
-    Serial.println(" "+String(iValueR) );
+    // Serial.print(String(hardware.motor_right.control.error) +" ");
+    Serial.print(String(float(hardware.motor_left.control.error*hardware.motor_left.control.p_gain))+" ");
+    Serial.print(String(float(diff_error_L*hardware.motor_left.control.d_gain))+" ");
+    Serial.print(String(float(hardware.motor_left.control.error_sum*hardware.motor_left.control.i_gain)));
+    iValueL = hardware.motor_left.control.error*hardware.motor_left.control.p_gain + diff_error_L*hardware.motor_left.control.d_gain + hardware.motor_left.control.error_sum*hardware.motor_left.control.i_gain;
+    iValueR = float(hardware.motor_right.control.error*hardware.motor_right.control.p_gain) + float(diff_error_R*hardware.motor_right.control.d_gain) + float(hardware.motor_right.control.error_sum*hardware.motor_right.control.i_gain);
+    Serial.println(" "+String(iValueL) );
 
     // Serial.print("Right Track ");
     // Serial.print(String(hardware.motor_right.control.error) + " ");
@@ -218,26 +230,24 @@ void loop()
     hardware.motor_left.control.last_error = hardware.motor_left.control.error;
     hardware.motor_right.control.last_error = hardware.motor_right.control.error;
 
-    if (iValueL > 0){
+
+    hardware.motor_left.current_pwm += int16_t(iValueL * float(SPEED_TO_PWM));
+    if (hardware.motor_left.current_pwm > 0){
       hardware.motor_left.flag.direction = DIR_FORWARD;
-      hardware.motor_left.current_pwm += iValueL * float(SPEED_TO_PWM);
       if (hardware.motor_left.current_pwm > MAX_PWM_VAL) hardware.motor_left.current_pwm = MAX_PWM_VAL;
       else if (hardware.motor_left.current_pwm < 0) hardware.motor_left.current_pwm = 0;
-      faboPWM.set_channel_value(0, hardware.motor_left.current_pwm);      
+      faboPWM.set_channel_value(0, (hardware.motor_left.current_pwm));      
       faboPWM.set_channel_value(1, 0); // anti-clockwise 
 
     } else {
       hardware.motor_left.flag.direction = DIR_BACKWARD;
-      hardware.motor_left.current_pwm += int16_t(iValueL * float(SPEED_TO_PWM) * -1);
-      if (hardware.motor_left.current_pwm > MAX_PWM_VAL) hardware.motor_left.current_pwm = MAX_PWM_VAL;
-      else if (hardware.motor_left.current_pwm < 0) hardware.motor_left.current_pwm = 0;
+      if (hardware.motor_left.current_pwm < -MAX_PWM_VAL) hardware.motor_left.current_pwm = -MAX_PWM_VAL;
+      else if (hardware.motor_left.current_pwm > 0) hardware.motor_left.current_pwm = 0;
       faboPWM.set_channel_value(0, 0);      
-      faboPWM.set_channel_value(1, hardware.motor_left.current_pwm); // clockwise 
+      faboPWM.set_channel_value(1, hardware.motor_left.current_pwm*-1); // clockwise 
     }
 
     hardware.motor_right.current_pwm += int16_t(iValueR * float(SPEED_TO_PWM));
-    // Serial.println("Right PWM "+String(hardware.motor_right.current_pwm) +" Right Error "+ String(hardware.motor_right.control.error));
-
     if (hardware.motor_right.current_pwm > 0){
       hardware.motor_right.flag.direction = DIR_FORWARD;
       if (hardware.motor_right.current_pwm > MAX_PWM_VAL) hardware.motor_right.current_pwm = MAX_PWM_VAL;
@@ -247,12 +257,10 @@ void loop()
       faboPWM.set_channel_value(3, hardware.motor_right.current_pwm); // clockwise 
     } else {
       hardware.motor_right.flag.direction = DIR_BACKWARD;
-      hardware.motor_right.current_pwm *= -1;
-      if (hardware.motor_right.current_pwm > MAX_PWM_VAL) hardware.motor_right.current_pwm = MAX_PWM_VAL;
-      else if (hardware.motor_right.current_pwm < 0) hardware.motor_right.current_pwm = 0;
-      faboPWM.set_channel_value(2, hardware.motor_right.current_pwm);      
+      if (hardware.motor_right.current_pwm < -MAX_PWM_VAL) hardware.motor_right.current_pwm = -MAX_PWM_VAL;
+      else if (hardware.motor_right.current_pwm > 0) hardware.motor_right.current_pwm = 0;
+      faboPWM.set_channel_value(2, (hardware.motor_right.current_pwm*-1));      
       faboPWM.set_channel_value(3, 0); // anti-clockwise 
-
     }
 
     last_pid_update = millis();
