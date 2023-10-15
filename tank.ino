@@ -59,21 +59,13 @@ char chr;
 char packet_handler(void){
   switch(rx_comms.cmd) {
     case SET_MOTOR_SPEEDS:
-      // Serial.print(SOF);
       Serial.print("SET_MOTOR_SPEEDS ");
       break;
 
     case READ_ENCODERS:
-      // Serial.print(SOF);
-      Serial.print("READ_ENCODERS ");
-      // Serial.print("2");
-      Serial.print(String(encoder_L.pulses));
-      Serial.print(" ");
-      Serial.print(String(encoder_R.pulses));
-      Serial.println(EOF);
-      *(long *)global_data[0] = encoder_L.pulses;
-      *(long *)global_data[4] = encoder_R.pulses;
-      Serial.println((*(long *)global_data[0]),HEX);
+      Serial.println("READ_ENCODERS ");
+      *(long *)&global_data[0] = encoder_L.pulses;
+      *(long *)&global_data[4] = encoder_R.pulses;
       send_packet(READ_ENCODERS_RESPONSE,8,global_data);
       break;
 
@@ -95,6 +87,30 @@ char packet_handler(void){
       // hardware.control.i_gain = pid_args[2];
       // hardware.control.o_gain = pid_args[3];
       Serial.println("OK");
+      break;
+
+    case READ_IMU:
+      Serial.println("READ IMU");
+      *(int16_t *)&global_data[0] = int16_t(imu.heading*1000);
+      *(int16_t *)&global_data[2] = int16_t(imu.raw_accel.x*1000);
+      *(int16_t *)&global_data[4] = int16_t(imu.raw_accel.y*1000);
+      *(int16_t *)&global_data[6] = int16_t(imu.raw_accel.z*1000);
+      *(int16_t *)&global_data[8] = int16_t(imu.raw_gyro.x*1000);
+      *(int16_t *)&global_data[10] = int16_t(imu.raw_gyro.y*1000);
+      *(int16_t *)&global_data[12] = int16_t(imu.raw_gyro.z*1000);
+      send_packet(READ_IMU_RESPONSE,14,global_data);
+      break;
+
+    case CALIBRATE_IMU:
+      Serial.println("Calibrate IMU");
+
+      // This needs to set a flag to calibrate in the main loop
+      //  The calibration will get gyro offsets to zero them,
+        // Rotation of the tank in the x,y plane to zero offsets . Find the mins and maxes for each to center the accel
+        //  Get offsets and scalers for heading
+
+
+      send_packet(CALIBRATE_IMU_RESPONSE,0,global_data);
       break;
     default:
       Serial.print("Invalid Command ");
@@ -119,8 +135,8 @@ void setup()
   faboPWM.set_hz(15000);
   Serial.println("Init");
     //  Convert from mm/s to um/s (so it can stay as int16_t)
-  hardware.motor_right.target_speed = 30.0;
-  hardware.motor_left.target_speed = 30.0;
+  hardware.motor_right.target_speed = 0.0;
+  hardware.motor_left.target_speed = 0.0;
 
   digitalWrite(LED,HIGH);
   last_imu_update = millis();
@@ -132,14 +148,11 @@ void loop()
   int16_t diff_error_L = 0, diff_error_R = 0;
   //float ax,ay,az,headingDegrees,heading,declinationAngle;
 
-  while (Serial.available() > 0) {
+  if (Serial.available() > 0) {
     // Read the next character
     chr = Serial.read();
-    Serial.println(chr);
-
       // Message has started
     if (chr == SOF){
-      Serial.println("Start Of Frame ");
       //  Clear buffer and cmd variable
       rx_comms.cmd = -1;
       rx_comms.data_length = -1;
@@ -147,21 +160,15 @@ void loop()
       rx_comms.count = 0;
       // start storing the serial input untill end of buffer
     } else if (chr == EOF){
-      Serial.println("End Of Frame ");
       rx_comms.packet_started = FALSE;
       // Call handler function
       packet_handler();
-
     } else if (rx_comms.packet_started == TRUE){
       Serial.print(rx_comms.count);
       if (rx_comms.cmd  == -1){
-        Serial.print("CMD ");
-        Serial.println(chr);
         rx_comms.cmd = chr;
         Serial.println(rx_comms.cmd,HEX);
       }else if (rx_comms.data_length == -1){
-        Serial.print("Data Length ");
-        Serial.println(chr);
         rx_comms.data_length = atoi(chr);
       } else {
         rx_comms.buffer[rx_comms.count] = atoi(chr);
@@ -170,11 +177,14 @@ void loop()
     }
   }
 
-  // Serial.println ("hi");
   if (diff_millis(last_imu_update) >= 100){
-    imu.read_mag();
-    imu.read_accel();
-    imu.read_gyro();
+
+    imu.heading = imu.read_mag();
+    imu.raw_accel = imu.read_accel();
+    imu.raw_gyro = imu.read_gyro();
+    Serial.print (String(imu.heading) + " ");
+    Serial.print (String(imu.raw_accel.z) + " ");
+    Serial.println (String(imu.raw_gyro.z) + " ");
     // digitalWrite(LED, !digitalRead(LED));  // Toggle the LED state
 
     // digitalWrite(LED,~digitalRead(LED));
@@ -184,11 +194,6 @@ void loop()
   }
 
   if ((encoder_update_time = diff_millis(last_pid_update)) >= 100){
-
-  // Serial.println ("hi");
-    // Serial.print(String(MM_PER_PULSE)+ " ");
-    // Serial.print(String(encoder_update_time)+ " ");
-    // Serial.println(String((encoder_L.pulses - encoder_L.last_pulses)));
 
     hardware.motor_left.current_speed = (((encoder_L.pulses - encoder_L.last_pulses)*1000/encoder_update_time)*MM_PER_PULSE);
     hardware.motor_right.current_speed = (((encoder_R.pulses - encoder_R.last_pulses)*1000/encoder_update_time)*MM_PER_PULSE);
@@ -213,19 +218,10 @@ void loop()
 
     diff_error_L = hardware.motor_left.control.last_error - hardware.motor_left.control.error;
     diff_error_R = hardware.motor_right.control.last_error - hardware.motor_right.control.error;
-    // Serial.print(String(hardware.motor_right.control.error) +" ");
-    Serial.print(String(float(hardware.motor_left.control.error*hardware.motor_left.control.p_gain))+" ");
-    Serial.print(String(float(diff_error_L*hardware.motor_left.control.d_gain))+" ");
-    Serial.print(String(float(hardware.motor_left.control.error_sum*hardware.motor_left.control.i_gain)));
+    
     iValueL = hardware.motor_left.control.error*hardware.motor_left.control.p_gain + diff_error_L*hardware.motor_left.control.d_gain + hardware.motor_left.control.error_sum*hardware.motor_left.control.i_gain;
     iValueR = float(hardware.motor_right.control.error*hardware.motor_right.control.p_gain) + float(diff_error_R*hardware.motor_right.control.d_gain) + float(hardware.motor_right.control.error_sum*hardware.motor_right.control.i_gain);
-    Serial.println(" "+String(iValueL) );
 
-    // Serial.print("Right Track ");
-    // Serial.print(String(hardware.motor_right.control.error) + " ");
-    // // Serial.print(String(iValueR) + " ");
-    // Serial.print(String(iValueR * SPEED_TO_PWM) + " ");
-    // Serial.println(String(hardware.motor_left.current_pwm));
 
     hardware.motor_left.control.last_error = hardware.motor_left.control.error;
     hardware.motor_right.control.last_error = hardware.motor_right.control.error;

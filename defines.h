@@ -75,6 +75,10 @@
 #define SET_MOTOR_SPEEDS_RESPONSE 's'
 #define UPDATE_PID                'P'
 #define UPDATE_PID_RESPONSE       'p'
+#define READ_IMU                  'I'
+#define READ_IMU_RESPONSE         'i'
+#define CALIBRATE_IMU             'C'
+#define CALIBRATE_IMU_RESPONSE    'c'
 
 /*
  * Classes
@@ -87,12 +91,29 @@
 
   
 // };
+
+
+  // Struct to hold control variables
+typedef struct{
+  float accel_x_offset;
+  float accel_y_offset;
+  float accel_z_offset;
+  float gyro_x_offset;
+  float gyro_y_offset;
+  float gyro_z_offset;
+  float mag_x_offset;
+  float mag_y_offset;
+  float mag_z_offset;
+  float mag_x_scalar;
+  float mag_y_scalar;
+  float mag_z_scalar;
+}calibration_s;
+
   // Struct to hold control variables
 typedef struct{
   float p_gain;
   float i_gain;
   float d_gain;
-  float o_gain;
   int32_t error_sum;
   volatile float error;
   volatile float last_error;
@@ -188,5 +209,6 @@ extern encoder_s encoder_R;
 extern char global_data[GLOBAL_ARRAY_SIZE];
 extern volatile uint32_t ms_timer;
 extern rx_s rx_comms;
+extern calibration_s calibration;
 
 #endif

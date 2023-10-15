@@ -30,6 +30,7 @@ xyzFloat Imu::read_accel(void){
   return accel.getRawValues();
 }
 
+// Return heading in radians
 float Imu::read_mag(void){
    /* Get a new sensor event */ 
   sensors_event_t event; 
@@ -60,6 +61,6 @@ float Imu::read_mag(void){
     heading -= 2*PI;
    
   // Convert radians to degrees for readability.
-  float headingDegrees = heading * 180/M_PI; 
-  return headingDegrees;
+  // float headingDegrees = heading * 180/M_PI; 
+  return heading;
 }

@@ -18,6 +18,7 @@ extern encoder_s encoder_L;
 extern encoder_s encoder_R;
 extern char global_data[GLOBAL_ARRAY_SIZE];
 extern rx_s rx_comms;
+extern calibration_s calibration;
 
 #ifdef __cplusplus
 extern "C" {
@@ -179,7 +180,7 @@ void send_packet(char cmd,int data_length,char *data){
   for (i = 0;i < data_length;i++){
     Serial.print(data[i]);
   }
-  Serial.print(EOF);
+  Serial.println(EOF);
 }
 // Add cmd to packet if more commands are added
 void send_str (int8_t *data,int8_t len){
