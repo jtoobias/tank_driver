@@ -18,6 +18,27 @@ void Imu::init(void)
     /* There was a problem detecting the HMC5883 ... check your connections */
     Serial.println("HMC5883 not connected!");
   }
+
+    mag_offset.x = 0.0;
+    mag_offset.y = 0.0;
+    mag_offset.z = 0.0;
+    mag_scalar.x = 0.0;
+    mag_scalar.y = 0.0;
+    mag_scalar.z = 0.0;
+
+    accel_offset.x = 0.0;
+    accel_offset.y = 0.0;
+    accel_offset.z = 0.0;
+    accel_scalar.x = 0.0;
+    accel_scalar.y = 0.0;
+    accel_scalar.z = 0.0;
+
+    gyro_offset.x = 0.0;
+    gyro_offset.y = 0.0;
+    gyro_offset.z = 0.0;
+    gyro_scalar.x = 0.0;
+    gyro_scalar.y = 0.0;
+    gyro_scalar.z = 0.0;
 }
 
 xyzFloat Imu::read_gyro(void){
@@ -28,6 +49,16 @@ xyzFloat Imu::read_gyro(void){
 
 xyzFloat Imu::read_accel(void){
   return accel.getRawValues();
+}
+
+xyzFloat Imu::read_mag_raw(void){
+  xyzFloat raw_mag;
+   /* Get a new sensor event */ 
+  sensors_event_t event; 
+  raw_mag.x = event.magnetic.x;
+  raw_mag.y = event.magnetic.y;
+  raw_mag.z = event.magnetic.z;
+  return raw_mag;
 }
 
 // Return heading in radians
@@ -63,4 +94,60 @@ float Imu::read_mag(void){
   // Convert radians to degrees for readability.
   // float headingDegrees = heading * 180/M_PI; 
   return heading;
+}
+
+void Imu::calibrateMagnetometer(void) {
+  Serial.println("Calibrating Magnetometer...");
+  float minX = 0.0, maxX = 0.0,minY = 0.0, maxY = 0.0,minZ = 0.0, maxZ = 0.0;
+  float start_heading = read_mag();
+  float fValue = 0.0;
+  bool fin = 0;
+  uint32_t start_time = millis();
+  // Perform magnetometer calibration routine
+  // Record min and max values over a period of time
+  // Adjust the following loop duration based on your needs
+  while (fin == 0) {
+    sensors_event_t event;
+    mag.getEvent(&event);
+    
+    // Check if magnetometer values are outside expected range
+    // Update min and max values accordingly
+    // You may need to adjust the range based on your use case
+    if (event.magnetic.x < minX) minX = event.magnetic.x;
+    if (event.magnetic.y < minY) minY = event.magnetic.y;
+    if (event.magnetic.z < minZ) minZ = event.magnetic.z;
+    
+    if (event.magnetic.x > maxX) maxX = event.magnetic.x;
+    if (event.magnetic.y > maxY) maxY = event.magnetic.y;
+    if (event.magnetic.z > maxZ) maxZ = event.magnetic.z;
+
+    delay(10); // Adjust delay based on your application requirements
+    fValue += abs(read_mag() - start_heading);
+      // 1.5 turns
+    if (fValue > 9.42) {
+      fin = 1;
+      break;
+    }
+
+    if ((millis()-start_time) > float(5.0*1000.0*60.0)){
+      Serial.println("Magnetometer Calibration Failed. Due to Timeout");
+      return;
+    }
+  }
+  if (fin == 1){
+    // Calculate calibration offsets and scale factors
+    mag_offset.x = (minX + maxX) / 2.0;
+    mag_offset.y = (minY + maxY) / 2.0;
+    mag_offset.z = (minZ + maxZ) / 2.0;
+
+    mag_scalar.x = 2.0 / (maxX - minX);
+    mag_scalar.y = 2.0 / (maxY - minY);
+    mag_scalar.z = 2.0 / (maxZ - minZ);
+
+    Serial.println("Magnetometer Calibration Complete.");
+    return;
+  } else {
+    Serial.println("Magnetometer Calibration Failed.");
+    return;
+  }
 }

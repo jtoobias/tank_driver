@@ -18,7 +18,6 @@ extern encoder_s encoder_L;
 extern encoder_s encoder_R;
 extern char global_data[GLOBAL_ARRAY_SIZE];
 extern rx_s rx_comms;
-extern calibration_s calibration;
 
 #ifdef __cplusplus
 extern "C" {
@@ -205,6 +204,9 @@ void setMotorSpeeds(int16_t linearVelocity, float angularVelocity,int16_t *vRigh
   vRight = linearVelocity + int16_t((WHEEL_TRACK/2) * angularVelocity);
   vLeft = linearVelocity - int16_t((WHEEL_TRACK/2) * angularVelocity); 
 }
+
+
+
 
 #ifdef __cplusplus
 } //extern "C" 

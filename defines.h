@@ -9,7 +9,7 @@
 #define _DEFINES_
 #define TRUE  1
 #define FALSE 0
-#define PI 3.1415926535897932384626
+#define PI 3.141592654
 
 #define GLOBAL_ARRAY_SIZE 50
 
@@ -92,22 +92,6 @@
   
 // };
 
-
-  // Struct to hold control variables
-typedef struct{
-  float accel_x_offset;
-  float accel_y_offset;
-  float accel_z_offset;
-  float gyro_x_offset;
-  float gyro_y_offset;
-  float gyro_z_offset;
-  float mag_x_offset;
-  float mag_y_offset;
-  float mag_z_offset;
-  float mag_x_scalar;
-  float mag_y_scalar;
-  float mag_z_scalar;
-}calibration_s;
 
   // Struct to hold control variables
 typedef struct{
@@ -209,6 +193,5 @@ extern encoder_s encoder_R;
 extern char global_data[GLOBAL_ARRAY_SIZE];
 extern volatile uint32_t ms_timer;
 extern rx_s rx_comms;
-extern calibration_s calibration;
 
 #endif

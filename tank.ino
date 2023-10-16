@@ -92,12 +92,12 @@ char packet_handler(void){
     case READ_IMU:
       Serial.println("READ IMU");
       *(int16_t *)&global_data[0] = int16_t(imu.heading*1000);
-      *(int16_t *)&global_data[2] = int16_t(imu.raw_accel.x*1000);
-      *(int16_t *)&global_data[4] = int16_t(imu.raw_accel.y*1000);
-      *(int16_t *)&global_data[6] = int16_t(imu.raw_accel.z*1000);
-      *(int16_t *)&global_data[8] = int16_t(imu.raw_gyro.x*1000);
-      *(int16_t *)&global_data[10] = int16_t(imu.raw_gyro.y*1000);
-      *(int16_t *)&global_data[12] = int16_t(imu.raw_gyro.z*1000);
+      *(int16_t *)&global_data[2] = int16_t(imu.raw_accel.x*10);
+      *(int16_t *)&global_data[4] = int16_t(imu.raw_accel.y*10);
+      *(int16_t *)&global_data[6] = int16_t(imu.raw_accel.z*10);
+      *(int16_t *)&global_data[8] = int16_t(imu.raw_gyro.x*10);
+      *(int16_t *)&global_data[10] = int16_t(imu.raw_gyro.y*10);
+      *(int16_t *)&global_data[12] = int16_t(imu.raw_gyro.z*10);
       send_packet(READ_IMU_RESPONSE,14,global_data);
       break;
 
