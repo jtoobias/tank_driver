@@ -67,18 +67,20 @@
 #define MAX_SUM_ERROR   200
 
 
-#define READ_ENCODERS             'E'
-#define READ_ENCODERS_RESPONSE    'e'
-#define RESET_ENCODERS            'R'
-#define RESET_ENCODERS_RESPONSE   'r'
-#define SET_MOTOR_SPEEDS          'S'
-#define SET_MOTOR_SPEEDS_RESPONSE 's'
-#define UPDATE_PID                'P'
-#define UPDATE_PID_RESPONSE       'p'
-#define READ_IMU                  'I'
-#define READ_IMU_RESPONSE         'i'
-#define CALIBRATE_IMU             'C'
-#define CALIBRATE_IMU_RESPONSE    'c'
+#define READ_ENCODERS                       'E'
+#define READ_ENCODERS_RESPONSE              'e'
+#define RESET_ENCODERS                      'R'
+#define RESET_ENCODERS_RESPONSE             'r'
+#define SET_MOTOR_SPEEDS                    'S'
+#define SET_MOTOR_SPEEDS_RESPONSE           's'
+#define UPDATE_PID                          'P'
+#define UPDATE_PID_RESPONSE                 'p'
+#define READ_IMU                            'I'
+#define READ_IMU_RESPONSE                   'i'
+#define CALIBRATE_IMU                       'C'
+#define CALIBRATE_IMU_RESPONSE              'c'
+#define RESET_CALIBRATE_IMU                 'Z'
+#define RESET_CALIBRATE_IMU_RESPONSE        'z'
 
 /*
  * Classes
@@ -184,7 +186,6 @@ typedef struct{
   io_s io;
   motor_s motor_left;
   motor_s motor_right;
-
 }hardware_s;
 
 extern hardware_s hardware;

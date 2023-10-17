@@ -22,6 +22,9 @@ class Imu
     float read_mag(void);
     xyzFloat read_mag_raw(void);
     void calibrateMagnetometer(void);
+    void calibrateAccelerometer(void);
+    void calibrateGyro(void);
+    void reset_imu_calibration(void);
 
     float heading;
     xyzFloat mag_scalar;
@@ -29,11 +32,11 @@ class Imu
     
     
     xyzFloat raw_accel;
-    xyzFloat accel_scalar;
+    // xyzFloat accel_scalar;
     xyzFloat accel_offset;
 
     xyzFloat raw_gyro;
-    xyzFloat gyro_scalar;
+    // xyzFloat gyro_scalar;
     xyzFloat gyro_offset;
     float temperature;
   private:

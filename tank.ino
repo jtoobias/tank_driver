@@ -47,6 +47,7 @@ volatile uint32_t l_count = 0;
 
 
 volatile unsigned long millisCount = 0;
+bool calibrate = 0;
 
 /*
  * FUNCTIONS
@@ -57,9 +58,16 @@ char chr;
 
 
 char packet_handler(void){
+  int32_t lValue1=0,lValue2=0;
   switch(rx_comms.cmd) {
     case SET_MOTOR_SPEEDS:
-      Serial.print("SET_MOTOR_SPEEDS ");
+      Serial.print("SET_MOTOR_SPEEDS");
+      lValue1 = *(long *)&rx_comms.buffer[0];
+      lValue2 = *(long *)&rx_comms.buffer[4];
+      Serial.print (String(lValue1) + " "+ String(lValue2));
+        // Lineare vel, angluar vel, right,left
+      setMotorSpeeds(lValue1,lValue2,hardware.motor_right.target_speed,hardware.motor_left.target_speed);
+      send_packet(SET_MOTOR_SPEEDS_RESPONSE,0,global_data);
       break;
 
     case READ_ENCODERS:
@@ -103,15 +111,18 @@ char packet_handler(void){
 
     case CALIBRATE_IMU:
       Serial.println("Calibrate IMU");
-
-      // This needs to set a flag to calibrate in the main loop
-      //  The calibration will get gyro offsets to zero them,
-        // Rotation of the tank in the x,y plane to zero offsets . Find the mins and maxes for each to center the accel
-        //  Get offsets and scalers for heading
-
-
+      imu.calibrateAccelerometer();
+      imu.calibrateGyro();
+      imu.calibrateMagnetometer();
       send_packet(CALIBRATE_IMU_RESPONSE,0,global_data);
       break;
+
+    case RESET_CALIBRATE_IMU:
+      Serial.println("RESET Calibration IMU");
+      imu.reset_imu_calibration();
+      send_packet(RESET_CALIBRATE_IMU_RESPONSE,0,global_data);
+      break;
+
     default:
       Serial.print("Invalid Command ");
       Serial.println(rx_comms.cmd,HEX);
@@ -182,9 +193,9 @@ void loop()
     imu.heading = imu.read_mag();
     imu.raw_accel = imu.read_accel();
     imu.raw_gyro = imu.read_gyro();
-    Serial.print (String(imu.heading) + " ");
-    Serial.print (String(imu.raw_accel.z) + " ");
-    Serial.println (String(imu.raw_gyro.z) + " ");
+    // Serial.println (String(imu.heading) + " ");
+    // Serial.print (String(imu.raw_accel.z) + " ");
+    // Serial.println (String(imu.raw_gyro.z) + " ");
     // digitalWrite(LED, !digitalRead(LED));  // Toggle the LED state
 
     // digitalWrite(LED,~digitalRead(LED));
@@ -261,6 +272,7 @@ void loop()
 
     last_pid_update = millis();
   }
+
 }
     
 ISR (PCINT2_vect)

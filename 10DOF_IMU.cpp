@@ -18,37 +18,42 @@ void Imu::init(void)
     /* There was a problem detecting the HMC5883 ... check your connections */
     Serial.println("HMC5883 not connected!");
   }
+  reset_imu_calibration();
+}
 
-    mag_offset.x = 0.0;
-    mag_offset.y = 0.0;
-    mag_offset.z = 0.0;
-    mag_scalar.x = 0.0;
-    mag_scalar.y = 0.0;
-    mag_scalar.z = 0.0;
+void Imu::reset_imu_calibration(void){
+  mag_offset.x = 0.0;
+  mag_offset.y = 0.0;
+  mag_offset.z = 0.0;
+  mag_scalar.x = 1.0;
+  mag_scalar.y = 1.0;
+  mag_scalar.z = 1.0;
 
-    accel_offset.x = 0.0;
-    accel_offset.y = 0.0;
-    accel_offset.z = 0.0;
-    accel_scalar.x = 0.0;
-    accel_scalar.y = 0.0;
-    accel_scalar.z = 0.0;
+  accel_offset.x = 0.0;
+  accel_offset.y = 0.0;
+  accel_offset.z = 0.0;
 
-    gyro_offset.x = 0.0;
-    gyro_offset.y = 0.0;
-    gyro_offset.z = 0.0;
-    gyro_scalar.x = 0.0;
-    gyro_scalar.y = 0.0;
-    gyro_scalar.z = 0.0;
+  gyro_offset.x = 0.0;
+  gyro_offset.y = 0.0;
+  gyro_offset.z = 0.0;
 }
 
 xyzFloat Imu::read_gyro(void){
   xyzFloat raw_gyro;
   gyro.readGyro(&raw_gyro.x,&raw_gyro.y,&raw_gyro.z);
+  raw_gyro.x = raw_gyro.x + gyro_offset.x;
+  raw_gyro.y = raw_gyro.y + gyro_offset.y;
+  raw_gyro.z = raw_gyro.z + gyro_offset.z;
   return raw_gyro;
 }
 
 xyzFloat Imu::read_accel(void){
-  return accel.getRawValues();
+  xyzFloat xyz;
+  xyz = accel.getRawValues();
+  xyz.x = xyz.x + accel_offset.x;
+  xyz.y = xyz.y + accel_offset.y;
+  xyz.z = xyz.z + accel_offset.z;
+  return xyz;
 }
 
 xyzFloat Imu::read_mag_raw(void){
@@ -63,18 +68,16 @@ xyzFloat Imu::read_mag_raw(void){
 
 // Return heading in radians
 float Imu::read_mag(void){
+  xyzFloat xyzValue;
    /* Get a new sensor event */ 
   sensors_event_t event; 
   mag.getEvent(&event);
- 
-  /* Display the results (magnetic vector values are in micro-Tesla (uT)) */
-  // Serial.print("X: "); Serial.print(event.magnetic.x); Serial.print("  ");
-  // Serial.print("Y: "); Serial.print(event.magnetic.y); Serial.print("  ");
-  // Serial.print("Z: "); Serial.print(event.magnetic.z); Serial.print("  ");Serial.println("uT");
-
+  xyzValue.x = (event.magnetic.x-mag_offset.x)*mag_scalar.x;
+  xyzValue.y = (event.magnetic.y-mag_offset.y)*mag_scalar.y;
+  xyzValue.z = (event.magnetic.z-mag_offset.z)*mag_scalar.z;
   // Hold the module so that Z is pointing 'up' and you can measure the heading with x&y
   // Calculate heading when the magnetometer is level, then correct for signs of axis.
-  float heading = atan2(event.magnetic.y, event.magnetic.x);
+  float heading = atan2(xyzValue.y, xyzValue.x);
   
   // Once you have your heading, you must then add your 'Declination Angle', which is the 'Error' of the magnetic field in your location.
   // Find yours here: http://www.magnetic-declination.com/
@@ -98,11 +101,13 @@ float Imu::read_mag(void){
 
 void Imu::calibrateMagnetometer(void) {
   Serial.println("Calibrating Magnetometer...");
+  const float full_circle = 2*3.141592654, cal_time = 0.75*1000.0*60.0;
   float minX = 0.0, maxX = 0.0,minY = 0.0, maxY = 0.0,minZ = 0.0, maxZ = 0.0;
-  float start_heading = read_mag();
-  float fValue = 0.0;
+  float last_heading = read_mag();
+  float fValue = 0.0,fTmp = 0.0,fDiff = 0.0;
   bool fin = 0;
-  uint32_t start_time = millis();
+  uint32_t start_time = millis(),lValue = 0;
+  reset_imu_calibration();
   // Perform magnetometer calibration routine
   // Record min and max values over a period of time
   // Adjust the following loop duration based on your needs
@@ -122,16 +127,24 @@ void Imu::calibrateMagnetometer(void) {
     if (event.magnetic.z > maxZ) maxZ = event.magnetic.z;
 
     delay(10); // Adjust delay based on your application requirements
-    fValue += abs(read_mag() - start_heading);
-      // 1.5 turns
-    if (fValue > 9.42) {
-      fin = 1;
-      break;
-    }
+    // fTmp = read_mag();
+    // fDiff = fTmp-last_heading;
+    // if (fDiff > (full_circle-0.1)) fDiff -= full_circle;
+    // else if (fDiff < -(full_circle-0.1)) fDiff += full_circle;
 
-    if ((millis()-start_time) > float(5.0*1000.0*60.0)){
-      Serial.println("Magnetometer Calibration Failed. Due to Timeout");
-      return;
+    // Serial.println("Summed Heading: " + String(fValue) + " " + String(fTmp) + " "+ String(last_heading) + " diff: " + String(fDiff));
+    // fValue += fDiff;
+    // last_heading = fTmp;
+    //   // 1.5 turns
+    // if ((fValue > 9.42) || (fValue < -9.42)){
+    //   fin = 1;
+    //   break;
+    // }
+    if ((lValue = millis()-start_time) > cal_time){
+      Serial.println("Magnetometer Calibration Completed. Due to Timeout");
+      fin = 1;
+    }else{
+      Serial.println("Time used: "+ String(lValue) +"/" +String(cal_time));
     }
   }
   if (fin == 1){
@@ -151,3 +164,47 @@ void Imu::calibrateMagnetometer(void) {
     return;
   }
 }
+
+void Imu::calibrateAccelerometer() {
+  const int numSamples = 100;
+  xyzFloat sumXYZ;
+  xyzFloat rawXYZ;
+  Serial.println("Calibrating Accelerometer...");
+  // Collect accelerometer readings while stationary
+  for (int i = 0; i < numSamples; ++i) {
+    rawXYZ = read_accel();
+    sumXYZ.x += rawXYZ.x;
+    sumXYZ.y += rawXYZ.y;
+    sumXYZ.z += rawXYZ.z;
+    delay(10); // Adjust delay based on your application requirements
+  }
+  // Calculate average offsets
+  accel_offset.x += sumXYZ.x / numSamples;
+  accel_offset.y += sumXYZ.y / numSamples;
+  accel_offset.z += sumXYZ.z / numSamples;
+  Serial.println("Accelerometer Calibration Complete.");
+}
+
+void Imu::calibrateGyro() {
+  const int numSamples = 100;
+  xyzFloat sumXYZ;
+  xyzFloat rawXYZ;
+  Serial.println("Calibrating Gyroscope...");
+  // Collect accelerometer readings while stationary
+  for (int i = 0; i < numSamples; ++i) {
+    rawXYZ = read_gyro();
+    sumXYZ.x += rawXYZ.x;
+    sumXYZ.y += rawXYZ.y;
+    sumXYZ.z += rawXYZ.z;
+    delay(10); // Adjust delay based on your application requirements
+  }
+  // Calculate average offsets
+  gyro_offset.x  += sumXYZ.x / numSamples;
+  gyro_offset.y  += sumXYZ.y / numSamples;
+  gyro_offset.z  += sumXYZ.z / numSamples;
+  Serial.println("Gyroscope Calibration Complete.");
+}
+
+
+
+

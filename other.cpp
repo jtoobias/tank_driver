@@ -199,7 +199,7 @@ void send_str (int8_t *data,int8_t len){
 }
 
 // Function to set motor speeds based on linear and angular velocities
-void setMotorSpeeds(int16_t linearVelocity, float angularVelocity,int16_t *vRight, int16_t *vLeft) {
+void setMotorSpeeds(int32_t linearVelocity, int32_t angularVelocity,int16_t *vRight, int16_t *vLeft) {
   // Calculate angular velocities for each wheel
   vRight = linearVelocity + int16_t((WHEEL_TRACK/2) * angularVelocity);
   vLeft = linearVelocity - int16_t((WHEEL_TRACK/2) * angularVelocity); 

@@ -47,6 +47,7 @@ void send_packet(char cmd,int data_length,char *data);
 extern void rotaryEncoder_left (void);
 extern void rotaryEncoder_right (void);
 extern void motorTimerCb(void);
+extern void setMotorSpeeds(int32_t linearVelocity, int32_t angularVelocity,int16_t *vRight, int16_t *vLeft);
 
 
 //String processor(const String& var);
